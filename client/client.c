@@ -1,14 +1,65 @@
 #include "client.h"
 
 int main(int argc, char *argv[]) {
-    int raw_socket;
+    /* handling arguments */
 
-    raw_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL);
+    //...
 
-    if (raw_socket < 0) {
-        perror("socket()");
-        return -1;
+    /* handling arguments */
+
+    /* Create and connect the raw socket */
+
+    //...
+
+    /* Create and connect the raw socket */
+
+    while(1) {
+        /* Receive packets */
+
+        //...
+
+        /* Receive packets */
+
+        switch (packet_mode)
+        {
+        case ACK:
+            /* Send ACK */
+            break;
+
+        case NACK:
+            /* Send NACK */
+            break;
+        
+        case LISTAR:
+            /* Send LISTAR */
+            break;
+
+        case BAIXAR:
+            /* Send BAIXAR */
+            break;
+
+        case PRINTAR:
+            /* Send PRINTAR */
+            break;
+
+        case DESCRITOR:
+            /* Send DESCRITOR */
+            break;
+
+        case DADOS:
+            /* Send DADOS */
+            break;
+
+        case FIM:
+            /* Send FIM */
+            break;
+
+        case ERRO:
+            /* Send ERRO */
+            break;
+        
+        default:
+            break;
+        }
     }
-
-
 }
