@@ -10,5 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+
+char *parse_args(int argc, char **argv, char *optstring);
 
 #endif // __UTILS_H__
