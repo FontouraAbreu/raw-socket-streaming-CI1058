@@ -1,7 +1,16 @@
 #include "client.h"
 
+
+struct sockaddr socket_address;
+struct sockaddr_in source,dest;
+unsigned char *send_buffer;
+
+
+
 int main(int argc, char *argv[]) {
     /* handling arguments */
+    int opt;
+    char *interface = parse_args(argc, argv, "i:");
 
     //...
 
@@ -9,14 +18,19 @@ int main(int argc, char *argv[]) {
 
     /* Create and connect the raw socket */
 
+    int raw_socket = connect_raw_socket(interface);
+    memset(buffer, 0, ETH_FRAME_LEN);
+
     //...
 
     /* Create and connect the raw socket */
-
+    int buflen, socket_address_length;
     while(1) {
         /* Receive packets */
+        socket_address_length = sizeof(socket_address);
 
-        //...
+        buflen = recvfrom(raw_socket, buffer, ETH_FRAME_LEN, 0, NULL, NULL);
+
 
         /* Receive packets */
 
