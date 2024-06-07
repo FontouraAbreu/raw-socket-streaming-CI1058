@@ -32,5 +32,6 @@ struct kermit_frame_t {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
+int connect_raw_socket(char *interface);
 
 #endif // SOCKET_H
