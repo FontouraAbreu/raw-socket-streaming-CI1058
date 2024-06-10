@@ -5,20 +5,23 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/ethernet.h>
+#include <netinet/in.h>
 #include <linux/if_packet.h>
 #include <linux/if.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
+#define PACKET_LEN 16
+#define DATA_LEN 8
 
-struct kermit_frame_t {
-    unsigned start;
-    unsigned size;
-    unsigned seq;
-    unsigned type;
-    unsigned data[64];
-    unsigned crc_8;
+typedef struct {
+    uint8_t starter_mark;
+    uint8_t size: 6;
+    uint8_t seq_num: 5;
+    uint8_t type: 5;
+    uint8_t data[DATA_LEN];
+    uint8_t crc;
 } kermit_frame_t;
 
 // Tipo das mensagens (5 bits)
@@ -32,6 +35,8 @@ struct kermit_frame_t {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
-int connect_raw_socket(char *interface);
+int connect_raw_socket(const char *interface);
+
+uint8_t calculate_crc8(const uint8_t *data, size_t len);
 
 #endif // SOCKET_H
