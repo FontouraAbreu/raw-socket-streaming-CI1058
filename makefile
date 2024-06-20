@@ -13,13 +13,14 @@ server.o: server/server.c server/server.h socket/socket.h
 client: client.o socket.o
 	$(CC) $(CFLAGS) -o raw_client client.o socket.o $(LFLAGS)
 
-client.o: client/client.c client/client.h socket/socket.h
+client.o: client/client.c client/client.h socket/socket.h 
 	$(CC) $(CFLAGS) -c client/client.c -o client.o
 
-socket.o: socket/socket.c socket/socket.h
+socket.o: socket/socket.c socket/socket.h socket/ConexaoRawSocket.h
 	$(CC) $(CFLAGS) -c socket/socket.c -o socket.o
 
-
+conexaoRawSocker.o: socket/ConexaoRawSocket.c socket/ConexaoRawSocket.h
+	$(CC) $(CFLAGS) -c socket/ConexaoRawSocket.c -o conexaoRawSocker.o
 
 clean:
 	rm -f *.o

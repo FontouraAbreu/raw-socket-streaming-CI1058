@@ -9,7 +9,7 @@ unsigned char *send_buffer;
 
 int main() {
     const char *interface = "lo";
-    int raw_socket = connect_raw_socket(interface);
+    int raw_socket = create_stream_socket(0);
 
     if (raw_socket < 0) {
         fprintf(stderr, "Failed to create and configure raw socket on interface %s\n", interface);
@@ -37,6 +37,16 @@ int main() {
             printf("\n");
         } else {
             printf("Received invalid packet\n");
+            //print packet
+            printf("Starter mark: %x\n", packet.starter_mark);
+            printf("Size: %d\n", packet.size);
+            printf("Sequence number: %d\n", packet.seq_num);
+            printf("Type: %d\n", packet.type);
+            printf("Data: ");
+            for (int i = 0; i < packet.size; ++i) {
+                printf("%c", packet.data[i]);
+            }
+            printf("\n");
         }
     }
 

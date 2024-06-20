@@ -35,7 +35,7 @@ typedef struct {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
-int connect_raw_socket(const char *interface);
+int create_stream_socket(int interface);
 
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
 

@@ -14,5 +14,11 @@
 #include <net/if.h>
 #include "../socket/socket.h"
 
+typedef struct server_t {
+    int socket;
+
+    
+} server_t;
+
 
 #endif // __SERVER_H__
