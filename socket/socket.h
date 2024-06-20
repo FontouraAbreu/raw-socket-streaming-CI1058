@@ -22,7 +22,18 @@ typedef struct {
     uint8_t type: 5;
     uint8_t data[DATA_LEN];
     uint8_t crc;
-} kermit_frame_t;
+} packet_t;
+
+typedef struct {
+    int socket;
+    unsigned char sequence_number;
+
+    packet_t *send_packets; // buffer de pacotes
+    packet_t *receive_packets; // buffer de pacotes
+
+    unsigned char *send_buffer; // buffer de envio
+    unsigned char *receive_buffer; // buffer de recebimento
+} connection_t;
 
 // Tipo das mensagens (5 bits)
 #define ACK 0 // bx00000
@@ -38,5 +49,9 @@ typedef struct {
 int connect_raw_socket(const char *interface);
 
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
+
+void send_packet(int sock, packet_t *packet);
+void receive_packet(int sock, packet_t *packet);
+
 
 #endif // SOCKET_H
