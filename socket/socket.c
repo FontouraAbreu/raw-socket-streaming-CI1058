@@ -19,6 +19,7 @@ int create_stream_socket(int interface){
         while (tmp) {
             if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_PACKET) {
                 if (tmp->ifa_name[0] == 'e' || tmp->ifa_name[0] == 'E') {
+                    printf("Interface: %s\n", tmp->ifa_name);
                     socket = ConexaoRawSocket(tmp->ifa_name);
                     break;
                 }

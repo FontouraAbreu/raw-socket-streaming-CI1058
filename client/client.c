@@ -8,7 +8,7 @@ unsigned char *send_buffer;
 
 
 int main() {
-    const char *interface = "lo";
+    const char *interface = "enp6s0";
     int raw_socket = create_stream_socket(0);
 
     if (raw_socket < 0) {
@@ -29,7 +29,7 @@ int main() {
         }
 
         uint8_t calculated_crc = calculate_crc8((uint8_t *)&packet, sizeof(packet) - 1);
-        if (packet.starter_mark == 0xAA && packet.crc == calculated_crc) {
+        if (packet.starter_mark == 0xAA) {
             printf("Received valid packet: ");
             for (int i = 0; i < packet.size; ++i) {
                 printf("%c", packet.data[i]);
@@ -37,16 +37,7 @@ int main() {
             printf("\n");
         } else {
             printf("Received invalid packet\n");
-            //print packet
-            printf("Starter mark: %x\n", packet.starter_mark);
-            printf("Size: %d\n", packet.size);
-            printf("Sequence number: %d\n", packet.seq_num);
-            printf("Type: %d\n", packet.type);
-            printf("Data: ");
-            for (int i = 0; i < packet.size; ++i) {
-                printf("%c", packet.data[i]);
-            }
-            printf("\n");
+            print_packet(&packet);
         }
     }
 

@@ -41,20 +41,20 @@ uint8_t CRC8(const void *data, size_t length)
 		#elif defined (CRC8_SLOW_CALCULATION) /* Compute directly (slow) */
 		//--------------------------------------------------------------------------
 			uint8_t inbyte = *m_data++;
-			
+
 			for (size_t i = 0; i < 8; ++i)
 			{
 				uint8_t mix = (m_crc ^ inbyte) & 0x01;
-				
+
 				m_crc >>= 1;
-				
+
 				if (mix)
 					m_crc ^= 0x8C; // 0x8C = 0x80|(CRC8_POLYNOM>>1), CRC8_POLYNOM = X^8+X^5+X^4+X^0 = 0x18
-				
+
 				inbyte >>= 1;
 			}
 		//--------------------------------------------------------------------------
-		#endif /* end of type calculation */ 
+		#endif /* end of type calculation */
 		//--------------------------------------------------------------------------
 	}
 
@@ -74,7 +74,7 @@ char *parse_args(int argc, char **argv, char *optstring)
 		case 'i':
 			interface = interface;
 			break;
-		
+
 		default:
 			fprintf(stderr, "Usage: %s -i <interface>\n", argv[0]);
 			exit(EXIT_FAILURE);
@@ -82,4 +82,16 @@ char *parse_args(int argc, char **argv, char *optstring)
 	}
 
 	return interface;
+}
+
+void print_packet(kermit_frame_t *m) {
+    if (!m)
+        return;
+
+    printf("Starter mark: %x\n", m->starter_mark);
+    printf("Size: %d\n", m->size);
+    printf("Sequence number: %d\n", m->seq_num);
+    printf("Type: %d\n", m->type);
+    printf("Data: %s\n", m->data);
+    printf("CRC: %x\n", m->crc);
 }

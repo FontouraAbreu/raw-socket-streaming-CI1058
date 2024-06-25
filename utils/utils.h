@@ -11,7 +11,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "../server/server.h"
+#include "../socket/socket.h"
+#include "../client/client.h"
 
 char *parse_args(int argc, char **argv, char *optstring);
+
+void print_packet(kermit_frame_t *packet);
 
 #endif // __UTILS_H__

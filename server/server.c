@@ -1,4 +1,5 @@
 #include "server.h"
+#include "../utils/utils.h"
 
 #define DEBUG
 
@@ -27,12 +28,7 @@ int wait_ack_or_error(backup_t *backup, int *error) {
     kermit_frame_t ack;
     ssize_t size;
 
-    size = recv(
-        backup->socket,
-        &ack,
-        sizeof(kermit_frame_t),
-        0
-    );
+    size = recv(backup->socket, &ack, sizeof(kermit_frame_t), 0);
 
     if (size < 0) {
         perror("recv");
@@ -49,18 +45,6 @@ int wait_ack_or_error(backup_t *backup, int *error) {
     return 0;
 }
 
-void print_message(kermit_frame_t *m) {
-    if (!m)
-        return;
-
-    printf("Starter mark: %x\n", m->starter_mark);
-    printf("Size: %d\n", m->size);
-    printf("Sequence number: %d\n", m->seq_num);
-    printf("Type: %d\n", m->type);
-    printf("Data: %s\n", m->data);
-    printf("CRC: %x\n", m->crc);
-}
-
 ssize_t send_message(backup_t *backup) {
     if (!backup)
         return -1;
@@ -72,7 +56,7 @@ ssize_t send_message(backup_t *backup) {
 
     #ifdef DEBUG
     printf("[ETHBKP][SDMSG] Sending message\n");
-    print_message(m); // Assumindo que esta função imprime detalhes do pacote
+    // print_packet(m);
     #endif
 
     ssize_t size;
@@ -80,12 +64,7 @@ ssize_t send_message(backup_t *backup) {
     int error = -1;
 
     while (!is_ack) {
-        size = send(
-            backup->socket,
-            m,
-            sizeof(kermit_frame_t),
-            0
-        );
+        size = send(backup->socket, m, sizeof(kermit_frame_t), 0);
 
         is_ack = wait_ack_or_error(backup, &error); // Esta função deve verificar se recebeu ACK ou erro
 
@@ -102,7 +81,7 @@ ssize_t send_message(backup_t *backup) {
 
 int main()
 {
-    const char *interface = "lo";
+    const char *interface = "enp6s0";
     int raw_socket = create_stream_socket(0);
     printf("Socket: %d\n", raw_socket);
     if (raw_socket < 0)

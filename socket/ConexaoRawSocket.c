@@ -28,7 +28,7 @@ int ConexaoRawSocket(char *device)
     printf("Erro no ioctl\n");
     exit(-1);
   }
-	
+
 
   memset(&endereco, 0, sizeof(endereco)); 	/*IP do dispositivo*/
   endereco.sll_family = AF_PACKET;
