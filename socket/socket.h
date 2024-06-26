@@ -22,7 +22,7 @@ typedef struct {
     uint8_t type: 5;
     uint8_t data[DATA_LEN];
     uint8_t crc;
-} kermit_frame_t;
+} packet_t;
 
 // Tipo das mensagens (5 bits)
 #define ACK 0 // bx00000
@@ -38,5 +38,8 @@ typedef struct {
 int create_stream_socket(int interface);
 
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
+
+// Função para enviar mensagens
+ssize_t send_message(int socket, packet_t *packet);
 
 #endif // SOCKET_H

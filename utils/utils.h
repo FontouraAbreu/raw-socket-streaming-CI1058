@@ -17,6 +17,6 @@
 
 char *parse_args(int argc, char **argv, char *optstring);
 
-void print_packet(kermit_frame_t *packet);
+void print_packet(packet_t *packet);
 
 #endif // __UTILS_H__

@@ -5,8 +5,6 @@ struct sockaddr socket_address;
 struct sockaddr_in source,dest;
 unsigned char *send_buffer;
 
-
-
 int main() {
     const char *interface = "enp6s0";
     int raw_socket = create_stream_socket(0);
@@ -16,7 +14,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    kermit_frame_t packet;
+    packet_t packet;
     struct sockaddr_ll src_addr;
     socklen_t src_addr_len = sizeof(src_addr);
 
@@ -39,7 +37,7 @@ int main() {
             printf("Received invalid packet\n");
             print_packet(&packet);
         }
-    }
+   }
 
     return EXIT_SUCCESS;
 }
