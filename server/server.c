@@ -3,55 +3,38 @@
 
 #define DEBUG
 
-void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, const uint8_t *data, size_t data_len)
-{
-    pkt->starter_mark = 0xAA;
-    pkt->size = data_len;
-    pkt->seq_num = seq_num;
-    pkt->type = type;
-    memset(pkt->data, 0, DATA_LEN);
-    memcpy(pkt->data, data, data_len);
-    pkt->crc = calculate_crc8((uint8_t *)pkt, sizeof(packet_t) - 1);
+connection_t connection;
+
+void init_server(char *interface){
+    connection.state = RECEIVING;
+    connection.socket = ConexaoRawSocket(interface);
+
+    // Destination MAC address (example, use the actual destination address)
+    uint8_t dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
+
+    // Prepare sockaddr_ll structure
+    memset(&connection.address, 0, sizeof(connection.address));
+    connection.address.sll_family = AF_PACKET;
+    connection.address.sll_protocol = htons(ETH_P_ALL);
+    connection.address.sll_ifindex = if_nametoindex(interface);
+    connection.address.sll_halen = ETH_ALEN;
+    memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
 
 int main()
 {
-    const char *interface = "enp6s0";
-    int raw_socket = create_stream_socket(0);
-    printf("Socket: %d\n", raw_socket);
-    if (raw_socket < 0)
-    {
-        fprintf(stderr, "Failed to create and configure raw socket on interface %s\n", interface);
-        return EXIT_FAILURE;
-    }
+    init_server("lo");
 
-    struct ifreq ifr;
-
-    // Get the interface index
-    strncpy(ifr.ifr_name, interface, IFNAMSIZ - 1);
-    if (ioctl(raw_socket, SIOCGIFINDEX, &ifr) == -1)
-    {
-        perror("ioctl");
-        close(raw_socket);
-        return EXIT_FAILURE;
-    }
-
-    // Bind the socket to the interface
-    struct sockaddr_ll addr = {
-        .sll_family = AF_PACKET,
-        .sll_protocol = htons(ETH_P_ALL),
-        .sll_ifindex = ifr.ifr_ifindex,
-    };
-    if (bind(raw_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-    {
-        perror("bind");
-        close(raw_socket);
-        return EXIT_FAILURE;
-    }
 
     while (1)
     {
-        /* code */
+        packet_t pkt;
+        listen_socket(connection.socket, &pkt);
+
+        if (pkt.starter_mark == STARTER_MARK)
+        {
+            printf("Received packet: %s\n", pkt.data);
+        }
     }
 
     return EXIT_SUCCESS;
