@@ -21,15 +21,3 @@ char *parse_args(int argc, char **argv, char *optstring)
 
 	return interface;
 }
-
-void print_packet(packet_t *m) {
-    if (!m)
-        return;
-
-    printf("Starter mark: %x\n", m->starter_mark);
-    printf("Size: %d\n", m->size);
-    printf("Sequence number: %d\n", m->seq_num);
-    printf("Type: %d\n", m->type);
-    printf("Data: %s\n", m->data);
-    printf("CRC: %x\n", m->crc);
-}

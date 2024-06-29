@@ -17,6 +17,5 @@
 
 char *parse_args(int argc, char **argv, char *optstring);
 
-void print_packet(packet_t *packet);
 
 #endif // __UTILS_H__
