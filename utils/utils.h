@@ -11,7 +11,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "../server/server.h"
+#include "../socket/socket.h"
+#include "../client/client.h"
 
 char *parse_args(int argc, char **argv, char *optstring);
+
 
 #endif // __UTILS_H__

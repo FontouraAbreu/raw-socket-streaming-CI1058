@@ -12,28 +12,36 @@
 #include <string.h>
 #include <stdio.h>
 
-#define PACKET_LEN 16
-#define DATA_LEN 8
+#define DATA_LEN 63
+
+typedef enum {
+    RECEIVING = 1,
+    SENDING,
+} state_t;
 
 typedef struct {
-    uint8_t starter_mark;
+    uint8_t starter_mark: 8;
     uint8_t size: 6;
     uint8_t seq_num: 5;
     uint8_t type: 5;
     uint8_t data[DATA_LEN];
-    uint8_t crc;
+    uint8_t crc: 8;
 } packet_t;
 
+typedef union {
+    packet_t packet;
+    uint8_t raw[sizeof(packet_t)];
+} packet_union_t;
+
+
+
 typedef struct {
+    state_t state;
     int socket;
-    unsigned char sequence_number;
-
-    packet_t *send_packets; // buffer de pacotes
-    packet_t *receive_packets; // buffer de pacotes
-
-    unsigned char *send_buffer; // buffer de envio
-    unsigned char *receive_buffer; // buffer de recebimento
+    struct sockaddr_ll address;
 } connection_t;
+
+#define STARTER_MARK 0x7E
 
 // Tipo das mensagens (5 bits)
 #define ACK 0 // bx00000
@@ -46,12 +54,13 @@ typedef struct {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
-int connect_raw_socket(const char *interface);
 
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
+int ConexaoRawSocket(char *device);
+int listen_socket(int _socket, packet_t *packet);
 
-void send_packet(int sock, packet_t *packet);
-void receive_packet(int sock, packet_t *packet);
 
+// Função para enviar mensagens
+ssize_t send_message(int socket, packet_t *packet);
 
 #endif // SOCKET_H

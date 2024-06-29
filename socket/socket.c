@@ -1,21 +1,18 @@
-#include "socket.h"
 #include <arpa/inet.h>
-#include <errno.h>
-#include <glob.h>
-#include <libgen.h>
-#include <limits.h>
-#include <stdio.h>
+#include <net/ethernet.h>
+#include <linux/if_packet.h>
+#include <net/if.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <ifaddrs.h>
+#include <stdint.h>
 #include <unistd.h>
-#include <sys/types.h>
-
+#include <errno.h>
+#include "socket.h"
 #define TEST
 
-int connect_raw_socket(const char *interface)
+
+int ConexaoRawSocket(char *device)
 {
   int soquete;
   struct ifreq ir;
@@ -29,12 +26,12 @@ int connect_raw_socket(const char *interface)
   }
 
   memset(&ir, 0, sizeof(struct ifreq));  	/*dispositivo eth0*/
-  memcpy(ir.ifr_name, interface, strlen(interface));
+  memcpy(ir.ifr_name, device, sizeof(device));
   if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
     printf("Erro no ioctl\n");
     exit(-1);
   }
-	
+
 
   memset(&endereco, 0, sizeof(endereco)); 	/*IP do dispositivo*/
   endereco.sll_family = AF_PACKET;
@@ -57,25 +54,89 @@ int connect_raw_socket(const char *interface)
   return soquete;
 }
 
+// Listen to a socket, if a packet is received, it is copied to the output packet
+int listen_socket(int _socket, packet_t *packet)
+{
+  uint8_t buffer[sizeof(packet_union_t)] = {0};
+  ssize_t bytes_received = recv(_socket, buffer, sizeof(buffer), 0);
 
-void send_packet(int sock, packet_t *packet) {
-    packet->crc = calculate_crc8((uint8_t *)packet, sizeof(packet_t) - 1);
-    if (send(sock, packet, sizeof(*packet), 0) < 0) {
-        perror("Erro ao enviar pacote");
+  // Check for errors
+  if (bytes_received < 0)
+  {
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      return -1;
+    else
+    {
+      fprintf(stderr, "Error on recv: %s\n", strerror(errno));
+      exit(-1);
     }
+  }
+  else if (bytes_received == 0)
+    return -1;
+
+  // check if packet starts with START_MARKER and has at least the size of a packet_t
+  if (buffer[0] != STARTER_MARK || bytes_received < sizeof(packet_t))
+    return -1;
+
+  // Deserialize into packet_union_t
+  packet_union_t pu;
+  memcpy(pu.raw, buffer, bytes_received);
+
+  // Validate packet
+  uint8_t received_crc = pu.packet.crc;
+  pu.packet.crc = 0; // Zero out CRC for validation
+  uint8_t computed_crc = calculate_crc8(pu.raw, sizeof(pu.raw) - 1);
+
+  if (received_crc != computed_crc)
+    return NACK;
+
+  // Copy packet to output
+  packet->size = pu.packet.size;
+  packet->seq_num = pu.packet.seq_num;
+  packet->type = pu.packet.type;
+  memcpy(packet->data, pu.packet.data, sizeof(packet->data));
+
+  return ACK;
 }
 
-void receive_packet(int sock, packet_t *packet) {
-    if (recv(sock, packet, sizeof(*packet), 0) < 0) {
-        perror("Erro ao receber pacote");
-    } else {
-        uint8_t crc = calculate_crc8((uint8_t *)packet, sizeof(packet_t) - 1);
-        if (packet->crc != crc) {
-            printf("CRC inválido!\n");
-        } else {
-            printf("Pacote recebido com sucesso.\n");
-        }
+void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, const uint8_t *data, size_t data_len)
+{
+    pkt->starter_mark = STARTER_MARK;
+    pkt->size = data_len;
+    pkt->seq_num = seq_num;
+    pkt->type = type;
+    memset(pkt->data, 0, DATA_LEN);
+    memcpy(pkt->data, data, data_len);
+    pkt->crc = calculate_crc8((uint8_t *)pkt, sizeof(packet_t) - 1);
+}
+
+void print_packet(packet_t *pkt)
+{
+    printf("Packet:\n");
+    printf("  Starter mark: %x\n", pkt->starter_mark);
+    printf("  Size: %d\n", pkt->size);
+    printf("  Sequence number: %d\n", pkt->seq_num);
+    printf("  Type: %d\n", pkt->type);
+    printf("  Data: %s\n", pkt->data);
+    printf("  CRC: %x\n", pkt->crc);
+}
+
+ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address)
+{
+    packet_union_t pu;
+    memcpy(pu.raw, packet, sizeof(packet_t));
+
+    ssize_t bytes_sent = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
+
+    if (bytes_sent < 0)
+    {
+        fprintf(stderr, "Error on sendto: %s\n", strerror(errno));
+        exit(-1);
     }
+
+    print_packet(packet);
+
+    return bytes_sent;
 }
 
 
@@ -93,3 +154,37 @@ uint8_t calculate_crc8(const uint8_t *data, size_t len) {
     }
     return crc;
 }
+
+// ssize_t send_message( *backup) {
+//     if (!backup)
+//         return -1;
+
+//     packet_t *m = &backup->send_buffer;
+
+//     // Supondo que build_packet preenche m corretamente
+//     build_packet(m, backup->sequence_number, 1, (const uint8_t*)"Hello", strlen("Hello"));
+
+//     #ifdef DEBUG
+//     printf("[ETHBKP][SDMSG] Sending message\n");
+//     // print_packet(m);
+//     #endif
+
+//     ssize_t size;
+//     int is_ack = 0;
+//     int error = -1;
+
+//     while (!is_ack) {
+//         size = send(backup->socket, m, sizeof(packet_t), 0);
+
+//         is_ack = wait_ack_or_error(backup, &error); // Esta função deve verificar se recebeu ACK ou erro
+
+//         #ifdef DEBUG
+//         printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+//         #endif
+//     }
+
+//     // Atualiza a sequência para o próximo número
+//     backup->sequence_number++;
+
+//     return size;
+// }

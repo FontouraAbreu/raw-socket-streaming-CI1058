@@ -13,6 +13,12 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include "../socket/socket.h"
+#include "../utils/utils.h"
 
+typedef struct server_t
+{
+    int socket;
+
+} server_t;
 
 #endif // __SERVER_H__

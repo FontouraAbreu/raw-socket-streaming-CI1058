@@ -7,7 +7,7 @@
 
 ## Checklist de implementação
 
-- [] Testar o RAW Socket
+- [X] Testar o RAW Socket
 - [] Definir a arquitetura do Servidor
     - [] Definir local de armazenamento dos videos
     - [] Definir como filtrar os videos pelo formato
