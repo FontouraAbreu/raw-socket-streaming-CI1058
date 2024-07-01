@@ -5,7 +5,7 @@ LFLAGS = -lm
 all: server client
 
 server: server.o socket.o utils.o
-	$(CC) $(CFLAGS) -o raw_server server.o socket.o $(LFLAGS)
+	$(CC) $(CFLAGS) -o raw_server server.o socket.o utils.o $(LFLAGS)
 
 client: client.o socket.o
 	$(CC) $(CFLAGS) -o raw_client client.o socket.o utils.o $(LFLAGS)
@@ -24,6 +24,7 @@ socket.o: socket/socket.c socket/socket.h utils/utils.h
 
 utils.o: utils/utils.c utils/utils.h socket/socket.h
 	$(CC) $(CFLAGS) -c utils/utils.c -o utils.o
+	
 clean:
 	rm -f *.o
 

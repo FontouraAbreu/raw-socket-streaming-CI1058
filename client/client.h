@@ -16,19 +16,6 @@
 #include "../socket/socket.h"
 #include "../utils/utils.h"
 
-//enum que contem o MENU com as opcoes
-typedef enum {
-    LISTAR = 10, // bx01010
-    BAIXAR = 11,
-    PRINTAR = 16,
-    DESCRITOR = 17,
-    DADOS = 18,
-    FIM = 30,
-    ERRO = 31
-} Actions_t;
-
-void show_menu();
-
-    
+int show_menu();
 
 #endif // __CLIENT_H__

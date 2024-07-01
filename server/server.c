@@ -30,7 +30,7 @@ void init_server(char *interface){
 int main(int argc, char **argv) {
     /* connects to the server */
     char *interface = parse_args(argc, argv, "i:");
-    int sockfd = connect_raw_socket(interface);
+    int sockfd = ConexaoRawSocket(interface);
     if (sockfd < 0) {
         perror("Erro ao criar socket");
         exit(EXIT_FAILURE);

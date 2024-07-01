@@ -35,8 +35,6 @@ typedef union {
     uint8_t raw[sizeof(packet_t)];
 } packet_union_t;
 
-
-
 typedef struct {
     state_t state;
     int socket;
@@ -60,16 +58,14 @@ typedef struct {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
-
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
 int ConexaoRawSocket(char *device);
 int listen_socket(int _socket, packet_t *packet);
 
 video_t *init_video_t();
 
-ssize_t send_packet(int sock, packet_t *packet);
+ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address);
 void receive_packet(int sock, packet_t *packet);
-
 
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);

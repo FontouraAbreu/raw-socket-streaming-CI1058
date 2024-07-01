@@ -162,3 +162,11 @@ video_t *init_video_t() {
     video->size = 0;
     return video;
 }
+
+void receive_packet(int sock, packet_t *packet) {
+    int status = listen_socket(sock, packet);
+    if (status == -1) {
+        printf("Erro ao receber pacote\n");
+        exit(EXIT_FAILURE);
+    }
+}
