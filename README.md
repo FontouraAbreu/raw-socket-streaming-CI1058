@@ -8,13 +8,20 @@
 ## Checklist de implementação
 
 - [X] Testar o RAW Socket
-- [] Definir a arquitetura do Servidor
-    - [] Definir local de armazenamento dos videos
-    - [] Definir como filtrar os videos pelo formato
-    - [] Como parar o download
-- [] Definir a arquitetura do Cliente
-    - [] Definir a interface do cliente
-    - [] Como invocar o player de video
-    - [] Como parar o download
+- [] Responder a um pacote com ACK ou NACK
+- [] Lidar com respostas de pacotes
+  - [] ACK
+  - [] NACK
+- [] Listar videos disponíveis
+- [] Enviar lista de videos disponíveis via raw socket
+- [] Receber requisição de video
+- [] Enviar video via raw socket
+- [] Receber pacotes de video
+- [] Executar o player do video
 - [] Definir o tipo de timeout
-- [] Como lidar com a string que ativa o modo VPN da interface de rede
+- [] Lidar com os diferentes tipos de erro
+  - [] Timeout
+  - [] Pacote corrompido
+  - [] Pacote perdido
+  - [] Pacote duplicado
+  - [] Verificar se existe a string que ativa o modo VPN na interface de rede
