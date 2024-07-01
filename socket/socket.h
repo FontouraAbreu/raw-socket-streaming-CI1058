@@ -19,6 +19,8 @@ typedef enum {
     SENDING,
 } state_t;
 
+
+#define STARTER_MARK 0x7E
 typedef struct {
     uint8_t starter_mark: 8;
     uint8_t size: 6;
@@ -41,23 +43,32 @@ typedef struct {
     struct sockaddr_ll address;
 } connection_t;
 
-#define STARTER_MARK 0x7E
+typedef struct {
+    char *name; // file name
+    char *path; // absolute path to video file
+    int size; // in bytes
+} video_t;
 
 // Tipo das mensagens (5 bits)
 #define ACK 0 // bx00000
 #define NACK 1 // bx00001
-// #define LISTAR 10 // bx01010
-// #define BAIXAR 11 // bx01011
-// #define PRINTAR 16 // bx10000
-// #define DESCRITOR 17 // bx10001
-// #define DADOS 18 // bx10010
-// #define FIM 30 // bx11110
-// #define ERRO 31 // bx11111
+#define LISTAR 10 // bx01010
+#define BAIXAR 11 // bx01011
+#define PRINTAR 16 // bx10000
+#define DESCRITOR 17 // bx10001
+#define DADOS 18 // bx10010
+#define FIM 30 // bx11110
+#define ERRO 31 // bx11111
 
 
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
 int ConexaoRawSocket(char *device);
 int listen_socket(int _socket, packet_t *packet);
+
+video_t *init_video_t();
+
+ssize_t send_packet(int sock, packet_t *packet);
+void receive_packet(int sock, packet_t *packet);
 
 
 // Função para enviar mensagens

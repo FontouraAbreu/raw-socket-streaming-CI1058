@@ -19,57 +19,64 @@ void init_client(char *interface){
     memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
 
-void show_menu(){
-    printf("Menu:\n");
-    printf("1 - Listar arquivos\n");
-    printf("2 - Baixar arquivo\n");
-    printf("3 - Printar arquivo\n");
-    printf("4 - Descritor de arquivo\n");
-    printf("5 - Dados de arquivo\n");
-    printf("6 - Fim\n");
-    printf("Escolha uma opção: ");
-}
+int main(int argc, char **argv) {
+    /* connects to the server */
+    char *interface = parse_args(argc, argv, "i:");
+    int sockfd = connect_raw_socket(interface);
+    if (sockfd < 0) {
+        perror("Erro ao criar socket");
+        exit(EXIT_FAILURE);
+    }
+    /* connects to the server */
 
-int main() {
-    init_client("lo");
-    while (1)
-    {
-        show_menu();
-        int choice;
-        scanf("%d", &choice);
-        packet_t pkt;
-        build_packet(&pkt, 0, 0, "Hello, world!", strlen("Hello, world!"));
-        send_packet(connection.socket, &pkt, &connection.address);
-        switch (choice)
-        {
+    int opcao_escolhida = show_menu();
+    while (opcao_escolhida != 2){
+        // Deals with the user's choice
+        switch (opcao_escolhida){
             case 1:
-                printf("\n\nListing files...\n");
-                // Call the function to list files
+                printf("Listando videos...\n");
+
                 break;
             case 2:
-                printf("\n\nDownloading file...\n");
-                // Call the function to download file
+                printf("Saindo...\n");
                 break;
-            case 3:
-                printf("\n\nPrinting file...\n");
-                // Call the function to print file
-                break;
-            case 4:
-                printf("\n\nFile descriptor...\n");
-                // Call the function to get file descriptor
-                break;
-            case 5:
-                printf("\n\nFile data...\n");
-                // Call the function to get file data
-                break;
-            case 6:
-                printf("\n\nExiting...\n");
-                return EXIT_SUCCESS;
             default:
-                printf("\n\nInvalid choice. Please try again.\n");
+                printf("Opcao invalida\n");
                 break;
         }
+        opcao_escolhida = show_menu();
     }
-    return EXIT_SUCCESS;
+
+    packet_t packet;
+    receive_packet(sockfd, &packet);
+    close(sockfd);
+
+    return 0;
 }
 
+
+
+
+/*
+* Função que lista os videos disponíveis no servidor
+* Retorna um ponteiro para um array de video_t
+*/
+video_t *get_videos() {
+    packet_t packet;
+    packet.starter_mark = STARTER_MARK;
+    packet.size = 0;
+    packet.seq_num = 0;
+    packet.type = LISTAR;
+    packet.data[0] = '\0';
+    packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+}
+
+int show_menu(){
+    printf("1. Listar videos\n");
+    printf("2. Baixar videos\n");
+    printf("3. Sair\n");
+    printf("Escolha uma opcao: ");
+    int opcao;
+    scanf("%d", &opcao);
+    return opcao;
+}

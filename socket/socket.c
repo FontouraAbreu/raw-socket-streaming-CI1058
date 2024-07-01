@@ -155,36 +155,10 @@ uint8_t calculate_crc8(const uint8_t *data, size_t len) {
     return crc;
 }
 
-// ssize_t send_message( *backup) {
-//     if (!backup)
-//         return -1;
-
-//     packet_t *m = &backup->send_buffer;
-
-//     // Supondo que build_packet preenche m corretamente
-//     build_packet(m, backup->sequence_number, 1, (const uint8_t*)"Hello", strlen("Hello"));
-
-//     #ifdef DEBUG
-//     printf("[ETHBKP][SDMSG] Sending message\n");
-//     // print_packet(m);
-//     #endif
-
-//     ssize_t size;
-//     int is_ack = 0;
-//     int error = -1;
-
-//     while (!is_ack) {
-//         size = send(backup->socket, m, sizeof(packet_t), 0);
-
-//         is_ack = wait_ack_or_error(backup, &error); // Esta função deve verificar se recebeu ACK ou erro
-
-//         #ifdef DEBUG
-//         printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-//         #endif
-//     }
-
-//     // Atualiza a sequência para o próximo número
-//     backup->sequence_number++;
-
-//     return size;
-// }
+video_t *init_video_t() {
+    video_t *video = (video_t *)malloc(sizeof(video_t));
+    video->name = NULL;
+    video->path = NULL;
+    video->size = 0;
+    return video;
+}
