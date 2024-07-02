@@ -6,10 +6,10 @@
 /* server configurations */
 #define VIDEO_LOCATION "./videos/"
 
-
 connection_t connection;
 
-void init_server(char *interface){
+void init_server(char *interface)
+{
     connection.state = RECEIVING;
     connection.socket = ConexaoRawSocket(interface);
 
@@ -25,9 +25,8 @@ void init_server(char *interface){
     memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
 
-
-
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     /* connects to the server */
     // char *interface = parse_args(argc, argv, "i:");
     init_server("lo");
@@ -35,28 +34,53 @@ int main(int argc, char **argv) {
     packet_t packet;
     receive_packet(connection.socket, &packet);
 
+    while (packet.type != FIM)
+    {
+        if (packet.type == LISTAR) // Fix: Use '==' instead of '=' to compare packet type
+        {
+            printf("Listando videos...\n");
+            video_t *videos = list_videos();
+
+            // envia a quantidade de videos
+            build_packet(&packet, 0, PRINTAR, (uint8_t *)&videos, sizeof(videos));
+            send_packet(connection.socket, &packet, &connection.address);
+            //     build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
+            //        printf("Enviando video com nome: %s\n", video_name);
+            //     send_packet(connection.socket, &packet, &connection.address);
+            // }
+
+            free(videos);
+        }
+
+        receive_packet(connection.socket, &packet); // Fix: Receive the next packet
+    }
 
     /* connects to the server */
-
 
     // list_videos();
 
     return EXIT_SUCCESS;
 }
 
-video_t *list_videos() {
+video_t *list_videos()
+{
     DIR *directory;
     struct dirent *entry;
     video_t *videos = NULL;
+    int videoCount = 0;
 
     // Open directory
-    if ((directory = opendir(VIDEO_LOCATION)) != NULL) {
+    if ((directory = opendir(VIDEO_LOCATION)) != NULL)
+    {
         // loop through directory
-        while ((entry = readdir(directory)) != NULL) {
+        while ((entry = readdir(directory)) != NULL)
+        {
             // check if entry is a regular file
-            if (entry->d_type == DT_REG) {
+            if (entry->d_type == DT_REG)
+            {
                 // check if entry is a .mp4 or .avi file
-                if (strstr(entry->d_name, ".mp4") == NULL && strstr(entry->d_name, ".avi") == NULL) {
+                if (strstr(entry->d_name, ".mp4") == NULL && strstr(entry->d_name, ".avi") == NULL)
+                {
                     continue;
                 }
 
@@ -69,24 +93,32 @@ video_t *list_videos() {
                 strcat(video->path, entry->d_name);
 
                 // add video to list
-                videos = (video_t *)realloc(videos, sizeof(video_t) + sizeof(video_t));
-                videos = video;
+                videos = (video_t *)realloc(videos, (videoCount + 1) * sizeof(video_t));
+                videos[videoCount] = *video;
+                videoCount++;
             }
         }
         closedir(directory);
-    } else {
+    }
+    else
+    {
         perror("Erro ao abrir diretorio");
     }
 
-    #ifdef DEBUG
-        while (videos != NULL) {
-            printf("Video: %s\n", videos->name);
-            printf("Size: %d\n", videos->size);
-            printf("Path: %s\n", videos->path);
-            videos++;
-        }
-    #endif
+    if (videoCount == 0)
+    {
+        printf("Nenhum video encontrado, verifique o diretorio de videos\n");
+    }
+
+#ifdef DEBUG
+    for (int i = 0; i < videoCount; i++)
+    {
+        printf("Video %d\n", i);
+        printf("  Name: %s\n", videos[i].name);
+        printf("  Path: %s\n", videos[i].path);
+        printf("  Size: %d\n", videos[i].size);
+    }
+#endif
 
     return videos;
 }
-
