@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "socket.h"
-#define TEST
+#define DEBUG
 
 
 int ConexaoRawSocket(char *device)
@@ -75,8 +75,12 @@ int listen_socket(int _socket, packet_t *packet)
     return -1;
 
   // check if packet starts with START_MARKER and has at least the size of a packet_t
-  if (buffer[0] != STARTER_MARK || bytes_received < sizeof(packet_t))
+  if (buffer[0] != STARTER_MARK || bytes_received < sizeof(packet_t)) {
+    #ifdef DEBUG
+        printf("Invalid starter mark or packet size\n");
+    #endif
     return -1;
+  }
 
   // Deserialize into packet_union_t
   packet_union_t pu;
@@ -99,7 +103,7 @@ int listen_socket(int _socket, packet_t *packet)
   return ACK;
 }
 
-void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, const uint8_t *data, size_t data_len)
+void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len)
 {
     pkt->starter_mark = STARTER_MARK;
     pkt->size = data_len;

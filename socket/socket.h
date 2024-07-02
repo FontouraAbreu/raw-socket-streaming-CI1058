@@ -64,6 +64,7 @@ int listen_socket(int _socket, packet_t *packet);
 
 video_t *init_video_t();
 
+void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address);
 void receive_packet(int sock, packet_t *packet);
 
