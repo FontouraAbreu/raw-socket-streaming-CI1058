@@ -4,6 +4,10 @@ char *parse_args(int argc, char **argv, char *optstring)
 {
 	int opt;
 	char *interface = NULL;
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s -i <interface>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
 
 	while ((opt = getopt(argc, argv, optstring)) != -1)
 	{
