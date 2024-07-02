@@ -31,9 +31,33 @@ int main(int argc, char **argv) {
             case 1:
                 printf("Listando videos...\n");
                 video_t *videos = get_videos();
+
+                //recebe a lista de videos, sendo um pacote para cada video
+                packet_t packet;
+                receive_packet(connection.socket, &packet);
+
+
+
+                //imprime packet                
+                printf("Video recebido: \n");
+                printf("Starter mark: %d\n", packet.starter_mark);
+                printf("Size: %d\n", packet.size);
+                printf("Seq num: %d\n", packet.seq_num);
+                printf("Type: %d\n", packet.type);
+                printf("Data: %s\n", packet.data);
+                printf("CRC: %d\n", packet.crc);
+                printf("\n");
+
                 break;
             case 2:
+                printf("Baixando videos...\n");
+                break;
+            case 3:
                 printf("Saindo...\n");
+                packet_t packet_end;
+                build_packet(&packet_end, 0, FIM, NULL, 0);
+
+                send_packet(connection.socket, &packet_end, &connection.address);
                 break;
             default:
                 printf("Opcao invalida\n");
