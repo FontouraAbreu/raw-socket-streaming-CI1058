@@ -22,7 +22,7 @@ client.o: client/client.c client/client.h socket/socket.h
 socket.o: socket/socket.c socket/socket.h utils/utils.h
 	$(CC) $(CFLAGS) -c socket/socket.c -o socket.o
 
-utils.o: utils/utils.c utils/utils.h socket/socket.h
+utils.o: utils/utils.c utils/utils.h
 	$(CC) $(CFLAGS) -c utils/utils.c -o utils.o
 	
 clean:
