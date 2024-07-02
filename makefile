@@ -7,7 +7,7 @@ all: server client
 server: server.o socket.o utils.o
 	$(CC) $(CFLAGS) -o raw_server server.o socket.o utils.o $(LFLAGS)
 
-client: client.o socket.o
+client: client.o socket.o server.o utils.o
 	$(CC) $(CFLAGS) -o raw_client client.o socket.o utils.o $(LFLAGS)
 
 utils: utils.o socket.o
