@@ -21,13 +21,8 @@ void init_client(char *interface){
 
 int main(int argc, char **argv) {
     /* connects to the server */
-    char *interface = parse_args(argc, argv, "i:");
-    int sockfd = ConexaoRawSocket(interface);
-    if (sockfd < 0) {
-        perror("Erro ao criar socket");
-        exit(EXIT_FAILURE);
-    }
-    /* connects to the server */
+    // char *interface = parse_args(argc, argv, "i:");
+    init_client("lo");
 
     int opcao_escolhida = show_menu();
     while (opcao_escolhida != 2){
@@ -35,7 +30,7 @@ int main(int argc, char **argv) {
         switch (opcao_escolhida){
             case 1:
                 printf("Listando videos...\n");
-
+                video_t *videos = get_videos();
                 break;
             case 2:
                 printf("Saindo...\n");
@@ -47,9 +42,9 @@ int main(int argc, char **argv) {
         opcao_escolhida = show_menu();
     }
 
-    // packet_t packet;
+    packet_t packet;
     // receive_packet(sockfd, &packet);
-    close(sockfd);
+    // close(sockfd);
 
     return 0;
 }
@@ -67,8 +62,12 @@ video_t *get_videos() {
     packet.size = 0;
     packet.seq_num = 0;
     packet.type = LISTAR;
-    packet.data[0] = '\0';
+    memset(packet.data, 0, DATA_LEN);
     packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+
+    video_t *videos = send_packet(connection.socket, &packet, &connection.address);
+
+    return videos;
 }
 
 int show_menu(){

@@ -29,15 +29,17 @@ void init_server(char *interface){
 
 int main(int argc, char **argv) {
     /* connects to the server */
-    char *interface = parse_args(argc, argv, "i:");
-    int sockfd = ConexaoRawSocket(interface);
-    if (sockfd < 0) {
-        perror("Erro ao criar socket");
-        exit(EXIT_FAILURE);
-    }
+    // char *interface = parse_args(argc, argv, "i:");
+    init_server("lo");
+
+    packet_t packet;
+    receive_packet(connection.socket, &packet);
+
+
     /* connects to the server */
 
-    list_videos();
+
+    // list_videos();
 
     return EXIT_SUCCESS;
 }
