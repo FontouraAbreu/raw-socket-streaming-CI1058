@@ -44,9 +44,9 @@ int main(int argc, char **argv)
         {
             case LISTAR:
                 printf("Listando videos...\n");
-                video_t *videos = list_videos();
+            video_list_t *videos = list_videos();
 
-                if (videos == NULL)
+            if (videos->num_videos == 0)
                 {
                     #ifdef DEBUG
                         printf("Erro ao listar videos, enviando pacote de erro\n");
@@ -56,19 +56,15 @@ int main(int argc, char **argv)
                         send_packet(connection.socket, &packet, &connection.address, &connection.state);
                     break;
                 }
+            else
+            {
+#ifdef DEBUG
+                printf("Processando videos...\n");
+#endif
+                process_videos(connection, &packet, videos);
+            }
 
-                while (videos != NULL)
-                {
-                    for (int i = 0; i < sizeof(videos); i++)
-                    {
-                        char video_name[DATA_LEN];
-                        strncpy(video_name, videos[i].name, sizeof(video_name));
-                        build_packet(&packet, i, PRINTAR, video_name, sizeof(video_name));
-                        send_packet(connection.socket, &packet, &connection.address, &connection.state);
-                    }
-                }
-
-                send_packet(connection.socket, &packet, &connection.address, &connection.state);
+            // send_packet(connection.socket, &packet, &connection.address, &connection.state);
                 //     build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
                 //        printf("Enviando video com nome: %s\n", video_name);
                 //     send_packet(connection.socket, &packet, &connection.address);
@@ -77,7 +73,6 @@ int main(int argc, char **argv)
             free(videos);
             break;
         }
-
     }
 
     /* connects to the server */
@@ -87,63 +82,113 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-video_t *list_videos()
+video_list_t *list_videos()
 {
     DIR *directory;
     struct dirent *entry;
-    video_t *videos = NULL;
-    int videoCount = 0;
+    video_list_t *video_list = malloc(sizeof(video_list_t));
 
-    // Open directory
+    if (!video_list)
+    {
+        perror("Erro ao alocar memória para video_list_t");
+        return NULL;
+    }
+
+    video_list->videos = NULL;
+    video_list->num_videos = 0;
+
     if ((directory = opendir(VIDEO_LOCATION)) != NULL)
     {
-        // loop through directory
         while ((entry = readdir(directory)) != NULL)
         {
-            // check if entry is a regular file
+            // Verifica se a entrada é um arquivo regular
             if (entry->d_type == DT_REG)
             {
-                // check if entry is a .mp4 or .avi file
+                // Verifica se a entrada é um arquivo .mp4 ou .avi
                 if (strstr(entry->d_name, ".mp4") == NULL && strstr(entry->d_name, ".avi") == NULL)
                 {
                     continue;
                 }
 
-                // extract video information
-                video_t *video = init_video_t();
-                video->name = entry->d_name;
-                video->size = entry->d_reclen;
-                video->path = (char *)malloc(strlen(VIDEO_LOCATION) + strlen(entry->d_name) + 1);
-                strcpy(video->path, VIDEO_LOCATION);
-                strcat(video->path, entry->d_name);
+                // Extrai informações do vídeo
+                video_t video;
+                video.name = strdup(entry->d_name); // Copia o nome do arquivo para o campo name do video_t
+                if (!video.name)
+                {
+                    perror("Erro ao alocar memória para video->name");
+                    closedir(directory);
+                    free(video_list->videos);
+                    free(video_list);
+                    return NULL;
+                }
+                video.size = entry->d_reclen;                                            // Assumindo que d_reclen contém o tamanho do arquivo
+                video.path = malloc(strlen(VIDEO_LOCATION) + strlen(entry->d_name) + 1); // Alocando memória para o caminho completo
+                if (!video.path)
+                {
+                    perror("Erro ao alocar memória para video->path");
+                    free(video.name); // Libera memória alocada para o nome do arquivo
+                    closedir(directory);
+                    free(video_list->videos);
+                    free(video_list);
+                    return NULL;
+                }
+                strcpy(video.path, VIDEO_LOCATION);
+                strcat(video.path, entry->d_name);
 
-                // add video to list
-                videos = (video_t *)realloc(videos, (videoCount + 1) * sizeof(video_t));
-                videos[videoCount] = *video;
-                videoCount++;
+                // Adiciona o video à lista
+                video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t)); // Ajusta o tamanho da lista para acomodar o novo vídeo
+                if (!video_list->videos)
+                {
+                    perror("Erro ao realocar memória para a lista de vídeos");
+                    free(video.name); // Libera memória alocada para o nome do arquivo
+                    free(video.path); // Libera memória alocada para o caminho do vídeo
+                    closedir(directory);
+                    free(video_list);
+                    return NULL;
+                }
+                video_list->videos[video_list->num_videos] = video; // Adiciona o vídeo à lista
+                video_list->num_videos++;
             }
         }
         closedir(directory);
     }
     else
     {
-        perror("Erro ao abrir diretorio");
+        perror("Erro ao abrir o diretório");
+        free(video_list->videos);
+        free(video_list);
+        return NULL;
     }
 
-    if (videoCount == 0)
+    if (video_list->num_videos == 0)
     {
-        printf("Nenhum video encontrado, verifique o diretorio de videos\n");
+        printf("Nenhum vídeo encontrado, verifique o diretório de vídeos\n");
+        free(video_list->videos);
+        free(video_list);
+        return NULL;
     }
 
-    #ifdef DEBUG
-        for (int i = 0; i < videoCount; i++)
-        {
-            printf("Video %d\n", i);
-            printf("  Name: %s\n", videos[i].name);
-            printf("  Path: %s\n", videos[i].path);
-            printf("  Size: %d\n", videos[i].size);
-        }
-    #endif
+    return video_list;
+}
 
-    return videos;
+void process_videos(connection_t connection, packet_t *packet, video_list_t *videos)
+{
+
+    for (int i = 0; i < videos->num_videos; i++)
+        {
+        char *video_name = videos->videos[i].name;
+        build_packet(packet, i, LISTAR, video_name, sizeof(video_name));
+        if (connection.state == SENDING)
+        {
+            send_packet(connection.socket, packet, &connection.address, &connection.state);
+        }
+    }
+
+    build_packet(packet, 0, FIM, NULL, 0);
+    if (connection.state == SENDING)
+    {
+        send_packet(connection.socket, packet, &connection.address, &connection.state);
+    }
+
+    // exit(EXIT_SUCCESS);
 }

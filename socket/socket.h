@@ -47,6 +47,11 @@ typedef struct {
     int size; // in bytes
 } video_t;
 
+typedef struct {
+    video_t *videos;
+    int num_videos;
+} video_list_t;
+
 // Tipo das mensagens (5 bits)
 #define ACK 0 // bx00000
 #define NACK 1 // bx00001

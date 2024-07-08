@@ -17,6 +17,8 @@
 #include "../socket/socket.h"
 #include "../utils/utils.h"
 
-video_t *list_videos();
+video_list_t *list_videos();
+
+void process_videos(connection_t connection, packet_t *packet, video_list_t *videos);
 
 #endif // __SERVER_H__

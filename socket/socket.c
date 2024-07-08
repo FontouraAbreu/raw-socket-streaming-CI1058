@@ -214,10 +214,10 @@ video_t *init_video_t() {
 void receive_packet(int sock, packet_t *packet, int *connection_state) {
     int status = listen_socket(sock, packet);
 
-    while (status == DUPLICATE_PACKET) {
-        printf("Pacote duplicado\n");
-        status = listen_socket(sock, packet);
-    }
+    // while (status == DUPLICATE_PACKET) {
+    //     printf("Pacote duplicado\n");
+    //     status = listen_socket(sock, packet);
+    // }
 
     connection_state = *connection_state * -1;
 
