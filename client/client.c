@@ -15,6 +15,7 @@ void init_client(char *interface){
     connection.address.sll_family = AF_PACKET;
     connection.address.sll_protocol = htons(ETH_P_ALL);
     connection.address.sll_ifindex = if_nametoindex(interface);
+    printf("ifindex: %d\n", connection.address.sll_ifindex);
     connection.address.sll_halen = ETH_ALEN;
     memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
@@ -29,24 +30,18 @@ int main(int argc, char **argv) {
         // Deals with the user's choice
         switch (opcao_escolhida){
             case 1:
-                printf("Listando videos...\n");
                 video_t *videos = get_videos();
 
                 //recebe a lista de videos, sendo um pacote para cada video
                 packet_t packet;
-                receive_packet(connection.socket, &packet);
+                if (connection.state == SENDING){
+                    receive_packet(connection.socket, &packet, &connection.state);
+                }
 
-
-
-                //imprime packet                
-                printf("Video recebido: \n");
-                printf("Starter mark: %d\n", packet.starter_mark);
-                printf("Size: %d\n", packet.size);
-                printf("Seq num: %d\n", packet.seq_num);
-                printf("Type: %d\n", packet.type);
-                printf("Data: %s\n", packet.data);
-                printf("CRC: %d\n", packet.crc);
-                printf("\n");
+                if (packet.type == ERRO){
+                    printf("Erro ao listar videos\n");
+                    break;
+                }
 
                 break;
             case 2:
@@ -57,7 +52,7 @@ int main(int argc, char **argv) {
                 packet_t packet_end;
                 build_packet(&packet_end, 0, FIM, NULL, 0);
 
-                send_packet(connection.socket, &packet_end, &connection.address);
+                send_packet(connection.socket, &packet_end, &connection.address, &connection.state);
                 break;
             default:
                 printf("Opcao invalida\n");
@@ -88,8 +83,11 @@ video_t *get_videos() {
     packet.type = LISTAR;
     memset(packet.data, 0, DATA_LEN);
     packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+    video_t *videos = NULL;
 
-    video_t *videos = send_packet(connection.socket, &packet, &connection.address);
+    if (connection.state == SENDING){
+        videos = send_packet(connection.socket, &packet, &connection.address, &connection.state);
+    }
 
     return videos;
 }

@@ -21,6 +21,7 @@ void init_server(char *interface)
     connection.address.sll_family = AF_PACKET;
     connection.address.sll_protocol = htons(ETH_P_ALL);
     connection.address.sll_ifindex = if_nametoindex(interface);
+    printf("ifindex: %d\n", connection.address.sll_ifindex);
     connection.address.sll_halen = ETH_ALEN;
     memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
@@ -32,27 +33,51 @@ int main(int argc, char **argv)
     init_server("lo");
 
     packet_t packet;
-    receive_packet(connection.socket, &packet);
 
-    while (packet.type != FIM)
+    while (1)
     {
-        if (packet.type == LISTAR) // Fix: Use '==' instead of '=' to compare packet type
-        {
-            printf("Listando videos...\n");
-            video_t *videos = list_videos();
-
-            // envia a quantidade de videos
-            build_packet(&packet, 0, PRINTAR, (uint8_t *)&videos, sizeof(videos));
-            send_packet(connection.socket, &packet, &connection.address);
-            //     build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
-            //        printf("Enviando video com nome: %s\n", video_name);
-            //     send_packet(connection.socket, &packet, &connection.address);
-            // }
-
-            free(videos);
+        if (connection.state == RECEIVING){
+            receive_packet(connection.socket, &packet, &connection.state);
         }
 
-        receive_packet(connection.socket, &packet); // Fix: Receive the next packet
+        switch (packet.type)
+        {
+            case LISTAR:
+                printf("Listando videos...\n");
+                video_t *videos = list_videos();
+
+                if (videos == NULL)
+                {
+                    #ifdef DEBUG
+                        printf("Erro ao listar videos, enviando pacote de erro\n");
+                    #endif
+                    build_packet(&packet, 0, ERRO, NULL, 0);
+                    if (connection.state == SENDING)
+                        send_packet(connection.socket, &packet, &connection.address, &connection.state);
+                    break;
+                }
+
+                while (videos != NULL)
+                {
+                    for (int i = 0; i < sizeof(videos); i++)
+                    {
+                        char video_name[DATA_LEN];
+                        strncpy(video_name, videos[i].name, sizeof(video_name));
+                        build_packet(&packet, i, PRINTAR, video_name, sizeof(video_name));
+                        send_packet(connection.socket, &packet, &connection.address, &connection.state);
+                    }
+                }
+
+                send_packet(connection.socket, &packet, &connection.address, &connection.state);
+                //     build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
+                //        printf("Enviando video com nome: %s\n", video_name);
+                //     send_packet(connection.socket, &packet, &connection.address);
+                // }
+
+            free(videos);
+            break;
+        }
+
     }
 
     /* connects to the server */
@@ -110,15 +135,15 @@ video_t *list_videos()
         printf("Nenhum video encontrado, verifique o diretorio de videos\n");
     }
 
-#ifdef DEBUG
-    for (int i = 0; i < videoCount; i++)
-    {
-        printf("Video %d\n", i);
-        printf("  Name: %s\n", videos[i].name);
-        printf("  Path: %s\n", videos[i].path);
-        printf("  Size: %d\n", videos[i].size);
-    }
-#endif
+    #ifdef DEBUG
+        for (int i = 0; i < videoCount; i++)
+        {
+            printf("Video %d\n", i);
+            printf("  Name: %s\n", videos[i].name);
+            printf("  Path: %s\n", videos[i].path);
+            printf("  Size: %d\n", videos[i].size);
+        }
+    #endif
 
     return videos;
 }

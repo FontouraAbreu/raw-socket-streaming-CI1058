@@ -13,12 +13,12 @@
 #include <stdio.h>
 
 #define DATA_LEN 63
+#define DUPLICATE_PACKET -6
 
 typedef enum {
     RECEIVING = 1,
-    SENDING,
+    SENDING = -1,
 } state_t;
-
 
 #define STARTER_MARK 0x7E
 typedef struct {
@@ -58,6 +58,7 @@ typedef struct {
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
+
 uint8_t calculate_crc8(const uint8_t *data, size_t len);
 int ConexaoRawSocket(char *device);
 int listen_socket(int _socket, packet_t *packet);
@@ -65,8 +66,8 @@ int listen_socket(int _socket, packet_t *packet);
 video_t *init_video_t();
 
 void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
-ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address);
-void receive_packet(int sock, packet_t *packet);
+ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
+void receive_packet(int sock, packet_t *packet, int *connection_state);
 
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);
