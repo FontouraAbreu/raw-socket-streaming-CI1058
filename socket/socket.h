@@ -11,8 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #define DATA_LEN 63
+#define STARTER_MARK 0x7E
 #define DUPLICATE_PACKET -6
 
 typedef enum {
@@ -20,7 +22,6 @@ typedef enum {
     SENDING = -1,
 } state_t;
 
-#define STARTER_MARK 0x7E
 typedef struct {
     uint8_t starter_mark: 8;
     uint8_t size: 6;
@@ -72,7 +73,7 @@ video_t *init_video_t();
 
 void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
-void receive_packet(int sock, packet_t *packet, int *connection_state);
+void receive_packet(int sock, packet_t *packet, connection_t *connection);
 
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);

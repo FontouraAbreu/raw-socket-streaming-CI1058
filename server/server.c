@@ -36,26 +36,29 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        if (connection.state == RECEIVING){
-            receive_packet(connection.socket, &packet, &connection.state);
-        }
+        receive_packet(connection.socket, &packet, &connection);
 
         switch (packet.type)
         {
-            case LISTAR:
-                printf("Listando videos...\n");
+        case LISTAR:
+            // send ACK to client
+            printf("Recebido comando de listagem de videos\n");
+            build_packet(&packet, 0, ACK, NULL, 0);
+            // if (connection.state == SENDING)
+            send_packet(connection.socket, &packet, &connection.address, &(connection.state));
+
+            printf("Listando videos...\n");
             video_list_t *videos = list_videos();
 
             if (videos->num_videos == 0)
-                {
-                    #ifdef DEBUG
-                        printf("Erro ao listar videos, enviando pacote de erro\n");
-                    #endif
-                    build_packet(&packet, 0, ERRO, NULL, 0);
-                    if (connection.state == SENDING)
-                        send_packet(connection.socket, &packet, &connection.address, &connection.state);
-                    break;
-                }
+            {
+#ifdef DEBUG
+                printf("Erro ao listar videos, enviando pacote de erro\n");
+#endif
+                build_packet(&packet, 0, ERRO, NULL, 0);
+                send_packet(connection.socket, &packet, &connection.address, &connection.state);
+                break;
+            }
             else
             {
 #ifdef DEBUG
@@ -65,22 +68,22 @@ int main(int argc, char **argv)
             }
 
             // send_packet(connection.socket, &packet, &connection.address, &connection.state);
-                //     build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
-                //        printf("Enviando video com nome: %s\n", video_name);
-                //     send_packet(connection.socket, &packet, &connection.address);
-                // }
-
+            // build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
+            // printf("Enviando video com nome: %s\n", video_name);
+            // send_packet(connection.socket, &packet, &connection.address);
             free(videos);
-            break;
         }
+
+        break;
     }
-
-    /* connects to the server */
-
-    // list_videos();
-
-    return EXIT_SUCCESS;
 }
+
+/* connects to the server */
+
+// list_videos();
+
+// return EXIT_SUCCESS;
+// }
 
 video_list_t *list_videos()
 {
@@ -175,20 +178,14 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 {
 
     for (int i = 0; i < videos->num_videos; i++)
-        {
+    {
         char *video_name = videos->videos[i].name;
         build_packet(packet, i, LISTAR, video_name, sizeof(video_name));
-        if (connection.state == SENDING)
-        {
-            send_packet(connection.socket, packet, &connection.address, &connection.state);
-        }
+        send_packet(connection.socket, packet, &connection.address, &connection.state);
     }
 
     build_packet(packet, 0, FIM, NULL, 0);
-    if (connection.state == SENDING)
-    {
-        send_packet(connection.socket, packet, &connection.address, &connection.state);
-    }
+    send_packet(connection.socket, packet, &connection.address, &connection.state);
 
     // exit(EXIT_SUCCESS);
 }
