@@ -2,6 +2,12 @@
 
 connection_t connection;
 
+typedef enum {
+    LIST = 1,
+    DOWNLOAD = 2,
+    QUIT = 3,
+} states_client_t;
+
 void init_client(char *interface)
 {
     connection.state = SENDING;
@@ -26,29 +32,36 @@ int main(int argc, char **argv)
     // char *interface = parse_args(argc, argv, "i:");
     init_client("lo");
 
-    int opcao_escolhida = show_menu();
-    while (opcao_escolhida != 2)
+    int op = show_menu();
+    while (
     {
-        // Deals with the user's choice
-        switch (opcao_escolhida)
+        switch (op)
         {
         case 1:
             video_t *videos = get_videos();
 
-            // recebe a lista de videos, sendo um pacote para cada video
             packet_t packet;
-            // receive_packet(connection.socket, &packet, &connection);
+            receive_packet_sequence(connection.socket, &packet, &connection);
 
-            printf("Listando videos RECEBIDOS...\n");
-            // video_list_t *videos = list_videos();
+            // Check if packet sequence number is valid
+            // if (packet.seq_num <= last_received_seq_num)
+            // {
+            //     printf("Número de sequência menor que o último pacote recebido. Parando recepção.\n");
+            //     break;
+            // }
 
+            // Process the received packet
             if (packet.type == ERRO)
             {
                 printf("Erro ao listar videos\n");
                 break;
             }
 
-            break;
+            if (packet.type != ACK)
+                print_packet(&packet);
+
+            continue;
+
         case 2:
             printf("Baixando videos...\n");
             break;
@@ -63,7 +76,7 @@ int main(int argc, char **argv)
             printf("Opcao invalida\n");
             break;
         }
-        opcao_escolhida = show_menu();
+        op = show_menu();
     }
 
     packet_t packet;
@@ -98,7 +111,6 @@ video_t *get_videos()
     {
         printf("ACK received\n");
     }
-    exit(EXIT_SUCCESS);
 
     return videos;
 }

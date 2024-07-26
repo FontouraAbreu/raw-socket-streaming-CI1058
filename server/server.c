@@ -37,14 +37,10 @@ int main(int argc, char **argv)
     while (1)
     {
         receive_packet(connection.socket, &packet, &connection);
-
+        printf("Pacote recebido AI UI UI UI\n");
         switch (packet.type)
         {
         case LISTAR:
-            // send ACK to client
-            printf("Recebido comando de listagem de videos\n");
-            build_packet(&packet, 0, ACK, NULL, 0);
-            // if (connection.state == SENDING)
             send_packet(connection.socket, &packet, &connection.address, &(connection.state));
 
             printf("Listando videos...\n");
@@ -61,9 +57,6 @@ int main(int argc, char **argv)
             }
             else
             {
-#ifdef DEBUG
-                printf("Processando videos...\n");
-#endif
                 process_videos(connection, &packet, videos);
             }
 
@@ -184,6 +177,7 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
         send_packet(connection.socket, packet, &connection.address, &connection.state);
     }
 
+    printf("Enviando pacote de fim de listagem\n");
     build_packet(packet, 0, FIM, NULL, 0);
     send_packet(connection.socket, packet, &connection.address, &connection.state);
 

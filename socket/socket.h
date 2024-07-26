@@ -61,6 +61,7 @@ typedef struct {
 #define PRINTAR 16 // bx10000
 #define DESCRITOR 17 // bx10001
 #define DADOS 18 // bx10010
+#define INICIO_SEQ 29 //
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
@@ -74,8 +75,10 @@ video_t *init_video_t();
 void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void receive_packet(int sock, packet_t *packet, connection_t *connection);
+void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection);
 
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);
+void print_packet(packet_t *pkt);
 
 #endif // SOCKET_H
