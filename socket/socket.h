@@ -76,9 +76,12 @@ void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, s
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void receive_packet(int sock, packet_t *packet, connection_t *connection);
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection);
+void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection);
+ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);
+ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void print_packet(packet_t *pkt);
 
 #endif // SOCKET_H

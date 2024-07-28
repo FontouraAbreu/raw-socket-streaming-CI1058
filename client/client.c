@@ -33,15 +33,16 @@ int main(int argc, char **argv)
     init_client("lo");
 
     int op = show_menu();
-    while (
+    while (op != QUIT)
     {
         switch (op)
         {
-        case 1:
+        case LIST:
             video_t *videos = get_videos();
 
             packet_t packet;
-            receive_packet_sequence(connection.socket, &packet, &connection);
+            wait_for_init_sequence(connection.socket, &packet, &connection);
+            // receive_packet_sequence(connection.socket, &packet, &connection);
 
             // Check if packet sequence number is valid
             // if (packet.seq_num <= last_received_seq_num)
@@ -62,10 +63,10 @@ int main(int argc, char **argv)
 
             continue;
 
-        case 2:
+        case DOWNLOAD:
             printf("Baixando videos...\n");
             break;
-        case 3:
+        case QUIT:
             printf("Saindo...\n");
             packet_t packet_end;
             build_packet(&packet_end, 0, FIM, NULL, 0);
@@ -121,7 +122,7 @@ int show_menu()
     printf("2. Baixar videos\n");
     printf("3. Sair\n");
     printf("Escolha uma opcao: ");
-    int opcao;
-    scanf("%d", &opcao);
-    return opcao;
+    int op;
+    scanf("%d", &op);
+    return op;
 }

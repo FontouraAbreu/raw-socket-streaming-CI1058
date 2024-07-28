@@ -274,6 +274,46 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     return size;
 }
 
+ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
+{
+    packet_union_t pu;
+    memcpy(pu.raw, packet, sizeof(packet_t));
+
+    connection_state = *connection_state * -1;
+
+    ssize_t size;
+    int is_ack = 0;
+    int error = -1;
+
+    while (!is_ack)
+    {
+        size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
+
+        is_ack = wait_ack_or_error(packet, &error, _socket);
+
+        printf("is_ack: %d\n", is_ack);
+
+#ifdef DEBUG
+        printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+#endif
+    }
+
+    if (size < 0)
+    {
+        fprintf(stderr, "Error on sendto: %s\n", strerror(errno));
+        exit(-1);
+    }
+
+    // if (is_ack)
+    // {
+    //     packet_t packet_init_seq;
+    //     build_packet(&packet_init_seq, 0, INICIO_SEQ, NULL, 0);
+    //     send_ack(_socket, &packet_init_seq, address, connection_state);
+    // }
+
+    return size;
+}
+
 ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
 {
     packet_union_t pu;
@@ -428,6 +468,56 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
     send_ack(sock, &packet_ack, &connection->address, &connection->state);
 }
 
+void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection)
+{
+    ssize_t size;
+
+    int error = -1;
+
+    for (;;)
+    {
+        size = recv(sock, packet, sizeof(packet_t), 0);
+
+        if (size == -1 || packet->starter_mark != STARTER_MARK)
+            continue;
+
+        printf("type %d\n", packet->type);
+        if (packet->type == ACK || packet->type == NACK)
+            continue;
+
+            // if (packet->seq_num == penult_packet.seq_num) {
+            //     send_packet(sock, &last_packet, &connection->address, &connection->state);
+            //     continue;
+            // }
+
+            // if (packet->type != RESET_SEQUENCE && packet->seq_num != last_packet.seq_num)
+            //     continue;
+
+#ifdef DEBUG
+#endif
+        printf("[ETHBKP][RCVM] Message received: ");
+
+        // error = check_error(packet);
+        // if (error > -1) {
+        //     send_packet(sock, &last_packet, &connection.address, connection_state);
+        //     break;
+        // }
+
+        // recebe um pacote de inicio de sequencia
+        if (packet->type == INICIO_SEQ)
+        {
+            break;
+        }
+
+        // if (check_message_parity(packet))
+        //     break;
+    };
+    packet_t packet_ack;
+
+    build_packet(&packet_ack, 0, ACK, NULL, 0);
+    send_ack(sock, &packet_ack, &connection->address, &connection->state);
+}
+
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection)
 {
     ssize_t size;
@@ -464,7 +554,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         //     break;
         // }
 
-
         // envia um ACK
         if (packet->type == FIM)
         {
@@ -475,7 +564,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         packet_t packet_ack;
         build_packet(&packet_ack, 0, ACK, NULL, 0);
         send_ack(sock, &packet_ack, &connection->address, &connection->state);
-        last_received_seq_num++;
+        // last_received_seq_num++;
 
         // if (check_message_parity(packet))
         //     break;

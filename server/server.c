@@ -37,11 +37,11 @@ int main(int argc, char **argv)
     while (1)
     {
         receive_packet(connection.socket, &packet, &connection);
-        printf("Pacote recebido AI UI UI UI\n");
+        printf("Entrando para funcoes\n");
         switch (packet.type)
         {
         case LISTAR:
-            send_packet(connection.socket, &packet, &connection.address, &(connection.state));
+            send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
 
             printf("Listando videos...\n");
             video_list_t *videos = list_videos();
