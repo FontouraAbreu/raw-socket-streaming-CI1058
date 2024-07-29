@@ -41,6 +41,7 @@ int main(int argc, char **argv)
         switch (packet.type)
         {
         case LISTAR:
+            build_packet(&packet, 0, INICIO_SEQ, NULL, 0);
             send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
 
             printf("Listando videos...\n");
@@ -57,7 +58,12 @@ int main(int argc, char **argv)
             }
             else
             {
+                wait_for_ack(connection.socket, &packet, &connection.address, &connection.state);
+
+                //quando receber o ack, chama a função process_videos
                 process_videos(connection, &packet, videos);
+                // process_videos(connection, &packet, videos);
+            
             }
 
             // send_packet(connection.socket, &packet, &connection.address, &connection.state);
@@ -167,19 +173,76 @@ video_list_t *list_videos()
     return video_list;
 }
 
-void process_videos(connection_t connection, packet_t *packet, video_list_t *videos)
+// wait for ack
+int wait_for_ack(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state)
 {
+    ssize_t size;
+    int is_ack = 0;
+    socklen_t addr_len = sizeof(struct sockaddr_ll);
 
-    for (int i = 0; i < videos->num_videos; i++)
+    while (!is_ack)
     {
-        char *video_name = videos->videos[i].name;
-        build_packet(packet, i, LISTAR, video_name, sizeof(video_name));
-        send_packet(connection.socket, packet, &connection.address, &connection.state);
+        size = recvfrom(sockfd, packet, sizeof(packet_t), 0, (struct sockaddr *)address, &addr_len);
+        if (size < 0)
+        {
+            perror("Erro ao receber pacote");
+            continue;
+        }
+
+        if (packet->type == ACK)
+        {
+            is_ack = 1;
+        }
+        else
+        {
+            print_packet(packet);
+            send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+        }
     }
 
+    return is_ack;
+}
+
+void process_videos(connection_t connection, packet_t *packet, video_list_t *videos)
+{
+    int current_video_index = 0;
+    int total_videos = videos->num_videos;
+
+    while (current_video_index < total_videos)
+    {
+        // Send the current video packet
+        char *video_name = videos->videos[current_video_index].name;
+        build_packet(packet, current_video_index, DADOS, (uint8_t *)video_name, strlen(video_name));
+        packet_union_t pu;
+        memcpy(pu.raw, packet, sizeof(packet_t));
+
+        ssize_t size;
+        int is_ack = 0;
+
+        while (!is_ack)
+        {
+            size = sendto(connection.socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)&connection.address, sizeof(connection.address));
+            if (size < 0)
+            {
+                perror("Error sending packet");
+                continue;
+            }
+
+            is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
+
+            printf("is_ack: %d\n", is_ack);
+
+#ifdef DEBUG
+            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+#endif
+        }
+
+        current_video_index++;
+    }
+
+    // All videos have been sent, send the end packet
     printf("Enviando pacote de fim de listagem\n");
     build_packet(packet, 0, FIM, NULL, 0);
     send_packet(connection.socket, packet, &connection.address, &connection.state);
-
     // exit(EXIT_SUCCESS);
 }

@@ -17,6 +17,6 @@
 #include "../utils/utils.h"
 
 int show_menu();
-video_t *get_videos();
+video_t *request_videos();
 
 #endif // __CLIENT_H__

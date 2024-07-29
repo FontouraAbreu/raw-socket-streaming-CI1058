@@ -2,7 +2,8 @@
 
 connection_t connection;
 
-typedef enum {
+typedef enum
+{
     LIST = 1,
     DOWNLOAD = 2,
     QUIT = 3,
@@ -38,10 +39,11 @@ int main(int argc, char **argv)
         switch (op)
         {
         case LIST:
-            video_t *videos = get_videos();
+            video_t *videos = request_videos();
 
             packet_t packet;
             wait_for_init_sequence(connection.socket, &packet, &connection);
+
             // receive_packet_sequence(connection.socket, &packet, &connection);
 
             // Check if packet sequence number is valid
@@ -60,6 +62,12 @@ int main(int argc, char **argv)
 
             if (packet.type != ACK)
                 print_packet(&packet);
+
+            if (packet.type == INICIO_SEQ)
+            {
+                printf("Recebendo videos...\n");
+                receive_packet_sequence(connection.socket, &packet, &connection);
+            }
 
             continue;
 
@@ -91,7 +99,7 @@ int main(int argc, char **argv)
  * Função que lista os videos disponíveis no servidor
  * Retorna um ponteiro para um array de video_t
  */
-video_t *get_videos()
+video_t *request_videos()
 {
     packet_t packet;
     packet.starter_mark = STARTER_MARK;

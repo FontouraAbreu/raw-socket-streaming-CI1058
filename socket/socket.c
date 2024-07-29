@@ -304,6 +304,8 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
         exit(-1);
     }
 
+    printf("recebi ack do init sequence\n");
+
     // if (is_ack)
     // {
     //     packet_t packet_init_seq;
@@ -515,62 +517,51 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     packet_t packet_ack;
 
     build_packet(&packet_ack, 0, ACK, NULL, 0);
-    send_ack(sock, &packet_ack, &connection->address, &connection->state);
+    ssize_t size_ack = send_ack(sock, &packet_ack, &connection->address, &connection->state);
+
+    if (size_ack < 0)
+    {
+        fprintf(stderr, "Error on sendto: %s\n", strerror(errno));
+        exit(-1);
+    }
 }
 
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection)
 {
     ssize_t size;
-
-    int error = -1;
     int last_received_seq_num = -1;
 
-    for (;;)
-    {
+    for (;;) {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
-        if (size == -1 || packet->starter_mark != STARTER_MARK)
-            continue;
-
-        if (packet->type == ACK || packet->type == NACK)
-            continue;
-
-        if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
-        {
+        if (size == -1 || packet->starter_mark != STARTER_MARK) {
             continue;
         }
 
-        // if (packet->type != RESET_SEQUENCE && packet->seq_num != last_packet.seq_num)
-        //     continue;
+        if (packet->type == ACK || packet->type == NACK) {
+            continue;
+        }
 
-#ifdef DEBUG
-#endif
-        printf("[ETHBKP][RCVM] Message received: ");
-        print_packet(packet);
+        if (packet->seq_num == last_received_seq_num && (packet->type != FIM)) {
+            continue;
+        }
 
-        // error = check_error(packet);
-        // if (error > -1) {
-        //     send_packet(sock, &last_packet, &connection.address, connection_state);
-        //     break;
-        // }
+        if (packet->type == DADOS) {
+            printf("[ETHBKP][RCVM] Message received: ");
+            print_packet(packet);
+            last_received_seq_num = packet->seq_num;
 
-        // envia um ACK
-        if (packet->type == FIM)
-        {
-            printf("Para de receber arquivos");
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+        }
+
+        if (packet->type == FIM) {
+            printf("Para de receber arquivos\n");
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
             break;
         }
-
-        packet_t packet_ack;
-        build_packet(&packet_ack, 0, ACK, NULL, 0);
-        send_ack(sock, &packet_ack, &connection->address, &connection->state);
-        // last_received_seq_num++;
-
-        // if (check_message_parity(packet))
-        //     break;
-    };
-
-    // printf("Enviando ack apos receber tudinho");
-    // build_packet(&packet_ack, 0, ACK, NULL, 0);
-    // send_ack(sock, &packet_ack, &connection->address, &connection->state);
+    }
 }
