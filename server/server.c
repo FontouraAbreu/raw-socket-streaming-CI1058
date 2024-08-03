@@ -60,10 +60,9 @@ int main(int argc, char **argv)
             {
                 wait_for_ack(connection.socket, &packet, &connection.address, &connection.state);
 
-                //quando receber o ack, chama a função process_videos
+                // quando receber o ack, chama a função process_videos
                 process_videos(connection, &packet, videos);
                 // process_videos(connection, &packet, videos);
-            
             }
 
             // send_packet(connection.socket, &packet, &connection.address, &connection.state);
@@ -71,9 +70,18 @@ int main(int argc, char **argv)
             // printf("Enviando video com nome: %s\n", video_name);
             // send_packet(connection.socket, &packet, &connection.address);
             free(videos);
+
+            break;
+
+        case BAIXAR:
+            printf("Recebendo pacote de download\n");
+            printf("Nome do video escolhido %s:", packet.data);
+            break;
+        default:
+            receive_packet(connection.socket, &packet, &connection);
         }
 
-        break;
+        // break;
     }
 }
 

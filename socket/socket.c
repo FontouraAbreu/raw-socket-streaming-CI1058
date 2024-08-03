@@ -360,6 +360,11 @@ uint8_t calculate_crc8(const uint8_t *data, size_t len)
 video_t *init_video_t()
 {
     video_t *video = (video_t *)malloc(sizeof(video_t));
+    if (!video)
+    {
+        perror("Failed to allocate memory for video_t");
+        return NULL;
+    }
     video->name = NULL;
     video->path = NULL;
     video->size = 0;
@@ -526,27 +531,32 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     }
 }
 
-void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection)
+void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection, video_list_t *video_list)
 {
     ssize_t size;
     int last_received_seq_num = -1;
 
-    for (;;) {
+    for (;;)
+    {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
-        if (size == -1 || packet->starter_mark != STARTER_MARK) {
+        if (size == -1 || packet->starter_mark != STARTER_MARK)
+        {
             continue;
         }
 
-        if (packet->type == ACK || packet->type == NACK) {
+        if (packet->type == ACK || packet->type == NACK)
+        {
             continue;
         }
 
-        if (packet->seq_num == last_received_seq_num && (packet->type != FIM)) {
+        if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
+        {
             continue;
         }
 
-        if (packet->type == DADOS) {
+        if (packet->type == DADOS)
+        {
             printf("[ETHBKP][RCVM] Message received: ");
             print_packet(packet);
             last_received_seq_num = packet->seq_num;
@@ -554,9 +564,44 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
+
+            // adiciona o video na lista
+            //             typedef struct {
+            //     char *name; // file name
+            //     char *path; // absolute path to video file
+            //     int size; // in bytes
+            // } video_t;
+
+            // typedef struct {
+            //     video_t *videos;
+            //     int num_videos;
+            // } video_list_t;
+            video_t *video = init_video_t();
+            if (video) {
+                video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
+                if (!video_list->videos)
+                {
+                    // Handle error, possibly free previously allocated resources and exit or return an error
+                    free(video);
+                }
+                else {
+                    video->name = (char *)malloc(sizeof(char) * packet->size);
+                    if (video->name) {
+                        memcpy(video->name, packet->data, packet->size);
+                        video->size = packet->size;
+                        video_list->videos[video_list->num_videos] = *video;
+                        video_list->num_videos++;
+                    }
+                    else {
+                        // Handle error, possibly free previously allocated resources and exit or return an error
+                        free(video);
+                    }
+                }
+            }
         }
 
-        if (packet->type == FIM) {
+        if (packet->type == FIM)
+        {
             printf("Para de receber arquivos\n");
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);

@@ -32,10 +32,12 @@ int main(int argc, char **argv)
     /* connects to the server */
     // char *interface = parse_args(argc, argv, "i:");
     init_client("lo");
+    video_list_t *video_list = malloc(sizeof(video_list_t));
 
     int op = show_menu();
     while (op != QUIT)
     {
+        printf("Opcao escolhida: %d\n", op);
         switch (op)
         {
         case LIST:
@@ -43,15 +45,6 @@ int main(int argc, char **argv)
 
             packet_t packet;
             wait_for_init_sequence(connection.socket, &packet, &connection);
-
-            // receive_packet_sequence(connection.socket, &packet, &connection);
-
-            // Check if packet sequence number is valid
-            // if (packet.seq_num <= last_received_seq_num)
-            // {
-            //     printf("Número de sequência menor que o último pacote recebido. Parando recepção.\n");
-            //     break;
-            // }
 
             // Process the received packet
             if (packet.type == ERRO)
@@ -66,13 +59,44 @@ int main(int argc, char **argv)
             if (packet.type == INICIO_SEQ)
             {
                 printf("Recebendo videos...\n");
-                receive_packet_sequence(connection.socket, &packet, &connection);
+                receive_packet_sequence(connection.socket, &packet, &connection, video_list);
             }
 
-            continue;
+            if (video_list->num_videos == 0)
+            {
+                printf("Nenhum video disponivel\n");
+                break;
+            }
+            else
+            {
+                printf("Videos disponiveis:\n");
+                for (int i = 0; i < video_list->num_videos; i++)
+                {
+                    printf("%d. %s\n", i + 1, video_list->videos[i].name);
+                }
+            }
+
+            break;
 
         case DOWNLOAD:
-            printf("Baixando videos...\n");
+            printf("Escolha o video que deseja baixar: ");
+            if (video_list->num_videos == 0)
+            {
+                printf("Nenhum video disponivel, liste os videos para ver o catalogo\n");
+                break;
+            }
+            int chosen_video;
+            scanf("%d", &chosen_video);
+            if (chosen_video < 1 || chosen_video > video_list->num_videos)
+            {
+                printf("Opcao invalida\n");
+                break;
+            }
+            printf("Baixando video %s\n", video_list->videos[chosen_video - 1].name);
+
+            request_download(video_list->videos[chosen_video - 1].name);
+
+
             break;
         case QUIT:
             printf("Saindo...\n");
@@ -87,8 +111,9 @@ int main(int argc, char **argv)
         }
         op = show_menu();
     }
-
+    op = show_menu();
     packet_t packet;
+
     // receive_packet(sockfd, &packet);
     // close(sockfd);
 
@@ -110,7 +135,6 @@ video_t *request_videos()
     packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
     video_t *videos = NULL;
 
-    printf("Enviando comando de listagem de videos...\n");
     send_packet(connection.socket, &packet, &connection.address, &connection.state);
 
     // wait for the server to send the list of videos, with ACK
@@ -122,6 +146,20 @@ video_t *request_videos()
     }
 
     return videos;
+}
+
+//enveio o nome do video
+void request_download(char *video_name)
+{
+    packet_t packet;
+    packet.starter_mark = STARTER_MARK;
+    packet.size = 0;
+    packet.seq_num = 0;
+    packet.type = BAIXAR;
+    memcpy(packet.data, video_name, strlen(video_name));
+    packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+
+    send_packet(connection.socket, &packet, &connection.address, &connection.state);
 }
 
 int show_menu()

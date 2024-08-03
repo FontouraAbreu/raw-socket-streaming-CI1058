@@ -75,7 +75,7 @@ video_t *init_video_t();
 void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void receive_packet(int sock, packet_t *packet, connection_t *connection);
-void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection);
+void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection, video_list_t *video_list);
 void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection);
 ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 

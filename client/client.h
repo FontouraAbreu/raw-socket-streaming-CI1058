@@ -18,5 +18,6 @@
 
 int show_menu();
 video_t *request_videos();
+void request_download(char *video_name);
 
 #endif // __CLIENT_H__
