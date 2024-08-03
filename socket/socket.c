@@ -510,17 +510,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
 
-            // adiciona o video na lista
-            //             typedef struct {
-            //     char *name; // file name
-            //     char *path; // absolute path to video file
-            //     int size; // in bytes
-            // } video_t;
-
-            // typedef struct {
-            //     video_t *videos;
-            //     int num_videos;
-            // } video_list_t;
             video_t *video = init_video_t();
             if (video)
             {
@@ -537,20 +526,17 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
                     {
                         memcpy(video->name, packet->data, packet->size);
                         video->size = packet->size;
-                        //
                         video->path = malloc(sizeof(char) * (strlen(VIDEO_LOCATION) + strlen(video->name) + 1));
                         if (video->path)
                         {
                             strcpy(video->path, VIDEO_LOCATION);
                             strcat(video->path, video->name);
                         }
-                        //
                         video_list->videos[video_list->num_videos] = *video;
                         video_list->num_videos++;
                     }
                     else
                     {
-                        // Handle error, possibly free previously allocated resources and exit or return an error
                         free(video);
                     }
                 }
@@ -567,79 +553,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         }
     }
 }
-
-// void receive_file(backup_t *backup, char *file_name, unsigned file_name_size) {
-//     if (!backup)
-//         return;
-
-//     char *f = malloc(sizeof(char) * (file_name_size + 1));
-//     test_alloc(f, "receive_file file name");
-
-//     f[file_name_size] = '\0';
-//     memcpy(f, file_name, file_name_size);
-
-//     printf("Saving file %s\n", f);
-
-//     FILE *file = fopen(f, "wb");
-
-//     free(f);
-
-//     if (!file) {
-//         fprintf(stderr, "Error on opening file: %s\n", strerror(errno));
-//         return;
-//     }
-
-//     ssize_t size = receive_message(backup);
-
-//     if (size < 0) {
-//         printf("Error: %s\n", strerror(errno));
-//         return;
-//     }
-
-//     int data_size;
-//     unsigned char *data = malloc(DATA_MAX_LEN);
-//     test_alloc(data, "receive_file data buffer");
-
-//     while (backup->recv_message->type == DATA) {
-//         data_size = backup->recv_message->size;
-//         memcpy(data, backup->recv_message->data, data_size);
-
-//         for (int i = 0; i < data_size - 1; i++) {
-//             if (data[i] == 0b11111111) {
-//                 if (data[i + 1] == 0b00000001)
-//                     data[i] = 0b10000001;
-
-//                 if (data[i + 1] == 0b00000011)
-//                     data[i] = 0b10001000;
-
-//                 for (int j = i + 1; j < data_size - 1; j++)
-//                     data[j] = data[j + 1];
-
-//                 data_size--;
-//             }
-//         }
-
-//         fwrite(
-//             data,
-//             sizeof(*backup->recv_message->data),
-//             data_size,
-//             file
-//         );
-
-//         size = receive_message(backup);
-
-//         if (size < 0) {
-//             printf("Error: %s\n", strerror(errno));
-//             return;
-//         }
-//     }
-
-//     free(data);
-
-//     fclose(file);
-
-//     return;
-// }
 
 void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename)
 {
@@ -720,87 +633,6 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
         }
     }
 }
-
-// void send_file(backup_t *backup, char *path) {
-//     if (!backup || !path)
-//         return;
-
-//     FILE *file = fopen(path, "rb");
-
-//     if (!file) {
-//         fprintf(stderr, "Error: %s\n", strerror(errno));
-//         return;
-//     }
-
-//     // Send file data
-//     int data_size = DATA_MAX_LEN;
-//     unsigned char *data = malloc(sizeof(unsigned char) * DATA_MAX_LEN);
-//     test_alloc(data, "client backup file data");
-
-//     unsigned char aux, aux2;
-
-//     ssize_t size_data;
-//     while (!feof(file)) {
-//         data_size = fread(data, sizeof(*data), DATA_MAX_LEN, file);
-
-//         if (!data_size)
-//             break;
-
-//         for (int i = 0; i < data_size - 1; i++) {
-//             if (
-//                 data[i] == 0b10000001 || // 0x81
-//                 data[i] == 0b10001000 || // 0x88
-//                 data[i] == 0b11111111    // 0xff
-//             ) {
-//                 aux = data[i + 1];
-
-//                 switch (data[i]) {
-//                     case 0b10000001:
-//                         data[i + 1] = 0b00000001;
-//                         break;
-//                     case 0b10001000:
-//                         data[i + 1] = 0b00000011;
-//                         break;
-//                     case 0b11111111:
-//                         data[i + 1] = 0b11111111;
-//                         break;
-//                     default:
-//                         break;
-//                 }
-
-//                 data[i] = 0b11111111;
-
-//                 for (int j = i + 2; j < data_size; j++) {
-//                     aux2 = data[j];
-//                     data[j] = aux;
-//                     aux = aux2;
-//                 }
-
-//                 fseek(file, -1, SEEK_CUR);
-//                 i++;
-//             }
-//         }
-
-//         make_data_message(backup, data, data_size);
-//         size_data = send_message(backup);
-
-//         if (size_data < 0)
-//             printf("Error: %s\n", strerror(errno));
-//     }
-
-//     fclose(file);
-
-//     // Send end file
-//     make_end_file_message(backup);
-//     ssize_t size = send_message(backup);
-
-//     if (size < 0) {
-//         printf("Error: %s\n", strerror(errno));
-//         return;
-//     }
-
-//     return;
-// }
 
 void test_alloc(void *ptr, const char *msg)
 {
