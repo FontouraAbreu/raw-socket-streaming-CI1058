@@ -2,6 +2,8 @@
 
 connection_t connection;
 
+#define VIDEO_CLIENT_LOCATION "./videos_client/teste.mp4"
+
 typedef enum
 {
     LIST = 1,
@@ -72,7 +74,7 @@ int main(int argc, char **argv)
                 printf("Videos disponiveis:\n");
                 for (int i = 0; i < video_list->num_videos; i++)
                 {
-                    printf("%d. %s\n", i + 1, video_list->videos[i].name);
+                    printf("%d. %s\n", i + 1, video_list->videos[i].path);
                 }
             }
 
@@ -96,6 +98,16 @@ int main(int argc, char **argv)
 
             request_download(video_list->videos[chosen_video - 1].name);
 
+            wait_for_init_sequence(connection.socket, &packet, &connection);
+
+            if (packet.type != ACK)
+                print_packet(&packet);
+
+            if (packet.type == INICIO_SEQ)
+            {
+                printf("Recebendo dados do video...\n");
+                receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION);
+            }
 
             break;
         case QUIT:
@@ -148,7 +160,7 @@ video_t *request_videos()
     return videos;
 }
 
-//enveio o nome do video
+// enveio o nome do video
 void request_download(char *video_name)
 {
     packet_t packet;

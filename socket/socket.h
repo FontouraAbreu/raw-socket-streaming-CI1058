@@ -1,5 +1,6 @@
 #ifndef SOCKET_H
 #define SOCKET_H
+#define _DEFAULT_SOURCE // para usar o DT_REG e DT_DIR
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -12,6 +13,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <dirent.h>
+
+#define VIDEO_LOCATION "./videos/"
 
 #define DATA_LEN 63
 #define STARTER_MARK 0x7E
@@ -83,5 +87,14 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 ssize_t send_message(int socket, packet_t *packet);
 ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void print_packet(packet_t *pkt);
+int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state);
+
+//Função para enviar um video
+void send_video(int sock, packet_t *packet, connection_t *connection, char *video_path);
+void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename);
+//retorna path do video selecionado
+char* get_video_path(char *video_name);
+void test_alloc(void *ptr, const char *msg);
+
 
 #endif // SOCKET_H

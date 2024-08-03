@@ -76,6 +76,20 @@ int main(int argc, char **argv)
         case BAIXAR:
             printf("Recebendo pacote de download\n");
             printf("Nome do video escolhido %s:", packet.data);
+            char *video_path = get_video_path(packet.data);
+
+            build_packet(&packet, 0, INICIO_SEQ, NULL, 0);
+            send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
+
+            if (video_path)
+            {
+                send_video(connection.socket, &packet, &connection, video_path);
+            }
+            else
+            {
+                printf("nao foi possivel encontrar o video");
+            }
+
             break;
         default:
             receive_packet(connection.socket, &packet, &connection);

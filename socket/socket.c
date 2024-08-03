@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "socket.h"
+#define DATA_MAX_LEN 64
 #define DEBUG
 
 packet_t last_packet = {
@@ -371,62 +372,6 @@ video_t *init_video_t()
     return video;
 }
 
-// ssize_t size;
-//     message_t *m = backup->recv_message;
-//     int error = -1;
-
-//     int valid_message;
-
-//     for (;;) {
-//         size = recv(backup->socket, backup->recv_buffer, BUFFER_MAX_LEN, 0);
-
-//         if (size == -1 || backup->recv_buffer[0] != START_MARKER)
-//             continue;
-
-//         buffer_to_message(backup->recv_buffer, m);
-
-//         if (m->type == ACK || m->type == NACK)
-//             continue;
-
-//         if (m->sequence == backup->sequence - 1) {
-//             send_acknowledgement(backup, 1);
-//             continue;
-//         }
-
-//         if (
-//             m->type != RESET_SEQUENCE &&
-//             m->sequence != backup->sequence
-//         )
-//             continue;
-
-//         #ifdef DEBUG
-//         printf("[ETHBKP][RCVM] Message received: ");
-//         print_message(backup->recv_message);
-//         #endif
-
-//         valid_message = check_message_parity(m);
-
-//         error = check_error(m);
-//         if (error > -1) {
-//             send_error(backup, error);
-//             break;
-//         }
-
-//         send_acknowledgement(backup, valid_message);
-
-//         if (valid_message)
-//             break;
-//     };
-
-//     if (m->type == RESET_SEQUENCE)
-//         backup->sequence = 1;
-//     else
-//         update_sequence(backup);
-
-//     return size;
-
-// chega erro
-
 void receive_packet(int sock, packet_t *packet, connection_t *connection)
 {
     ssize_t size;
@@ -577,22 +522,34 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             //     int num_videos;
             // } video_list_t;
             video_t *video = init_video_t();
-            if (video) {
+            if (video)
+            {
                 video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
                 if (!video_list->videos)
                 {
                     // Handle error, possibly free previously allocated resources and exit or return an error
                     free(video);
                 }
-                else {
+                else
+                {
                     video->name = (char *)malloc(sizeof(char) * packet->size);
-                    if (video->name) {
+                    if (video->name)
+                    {
                         memcpy(video->name, packet->data, packet->size);
                         video->size = packet->size;
+                        //
+                        video->path = malloc(sizeof(char) * (strlen(VIDEO_LOCATION) + strlen(video->name) + 1));
+                        if (video->path)
+                        {
+                            strcpy(video->path, VIDEO_LOCATION);
+                            strcat(video->path, video->name);
+                        }
+                        //
                         video_list->videos[video_list->num_videos] = *video;
                         video_list->num_videos++;
                     }
-                    else {
+                    else
+                    {
                         // Handle error, possibly free previously allocated resources and exit or return an error
                         free(video);
                     }
@@ -609,4 +566,370 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             break;
         }
     }
+}
+
+// void receive_file(backup_t *backup, char *file_name, unsigned file_name_size) {
+//     if (!backup)
+//         return;
+
+//     char *f = malloc(sizeof(char) * (file_name_size + 1));
+//     test_alloc(f, "receive_file file name");
+
+//     f[file_name_size] = '\0';
+//     memcpy(f, file_name, file_name_size);
+
+//     printf("Saving file %s\n", f);
+
+//     FILE *file = fopen(f, "wb");
+
+//     free(f);
+
+//     if (!file) {
+//         fprintf(stderr, "Error on opening file: %s\n", strerror(errno));
+//         return;
+//     }
+
+//     ssize_t size = receive_message(backup);
+
+//     if (size < 0) {
+//         printf("Error: %s\n", strerror(errno));
+//         return;
+//     }
+
+//     int data_size;
+//     unsigned char *data = malloc(DATA_MAX_LEN);
+//     test_alloc(data, "receive_file data buffer");
+
+//     while (backup->recv_message->type == DATA) {
+//         data_size = backup->recv_message->size;
+//         memcpy(data, backup->recv_message->data, data_size);
+
+//         for (int i = 0; i < data_size - 1; i++) {
+//             if (data[i] == 0b11111111) {
+//                 if (data[i + 1] == 0b00000001)
+//                     data[i] = 0b10000001;
+
+//                 if (data[i + 1] == 0b00000011)
+//                     data[i] = 0b10001000;
+
+//                 for (int j = i + 1; j < data_size - 1; j++)
+//                     data[j] = data[j + 1];
+
+//                 data_size--;
+//             }
+//         }
+
+//         fwrite(
+//             data,
+//             sizeof(*backup->recv_message->data),
+//             data_size,
+//             file
+//         );
+
+//         size = receive_message(backup);
+
+//         if (size < 0) {
+//             printf("Error: %s\n", strerror(errno));
+//             return;
+//         }
+//     }
+
+//     free(data);
+
+//     fclose(file);
+
+//     return;
+// }
+
+void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename)
+{
+    ssize_t size;
+    int last_received_seq_num = -1;
+
+    FILE *file = fopen(output_filename, "wb");
+
+    if (!file)
+    {
+        fprintf(stderr, "Error opening file: %s\n", strerror(errno));
+        return;
+    }
+
+    while (1)
+    {
+        size = recv(sock, packet, sizeof(packet_t), 0);
+
+        if (size == -1)
+        {
+            perror("recv");
+            continue;
+        }
+
+        if (packet->starter_mark != STARTER_MARK)
+        {
+            continue;
+        }
+
+        if (packet->type == ACK || packet->type == NACK)
+        {
+            continue;
+        }
+
+        if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
+        {
+            continue;
+        }
+
+        if (packet->type == DADOS)
+        {
+            printf("[ETHBKP][RCVM] Message received: ");
+            print_packet(packet);
+
+            size_t written = fwrite(packet->data, 1, packet->size, file);
+            if (written != packet->size)
+            {
+                fprintf(stderr, "Error writing to file\n");
+                fclose(file);
+                break;
+            }
+            last_received_seq_num = packet->seq_num;
+
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+        }
+
+        if (packet->type == FIM)
+        {
+            fclose(file);
+            printf("File received successfully\n");
+
+            char command[256];
+            snprintf(command, sizeof(command), "vlc %s", output_filename);
+
+            int result = system(command);
+            if (result == -1)
+            {
+                fprintf(stderr, "Error executing system command\n");
+            }
+            else
+            {
+                printf("VLC player opened successfully\n");
+            }
+
+            break;
+        }
+    }
+}
+
+// void send_file(backup_t *backup, char *path) {
+//     if (!backup || !path)
+//         return;
+
+//     FILE *file = fopen(path, "rb");
+
+//     if (!file) {
+//         fprintf(stderr, "Error: %s\n", strerror(errno));
+//         return;
+//     }
+
+//     // Send file data
+//     int data_size = DATA_MAX_LEN;
+//     unsigned char *data = malloc(sizeof(unsigned char) * DATA_MAX_LEN);
+//     test_alloc(data, "client backup file data");
+
+//     unsigned char aux, aux2;
+
+//     ssize_t size_data;
+//     while (!feof(file)) {
+//         data_size = fread(data, sizeof(*data), DATA_MAX_LEN, file);
+
+//         if (!data_size)
+//             break;
+
+//         for (int i = 0; i < data_size - 1; i++) {
+//             if (
+//                 data[i] == 0b10000001 || // 0x81
+//                 data[i] == 0b10001000 || // 0x88
+//                 data[i] == 0b11111111    // 0xff
+//             ) {
+//                 aux = data[i + 1];
+
+//                 switch (data[i]) {
+//                     case 0b10000001:
+//                         data[i + 1] = 0b00000001;
+//                         break;
+//                     case 0b10001000:
+//                         data[i + 1] = 0b00000011;
+//                         break;
+//                     case 0b11111111:
+//                         data[i + 1] = 0b11111111;
+//                         break;
+//                     default:
+//                         break;
+//                 }
+
+//                 data[i] = 0b11111111;
+
+//                 for (int j = i + 2; j < data_size; j++) {
+//                     aux2 = data[j];
+//                     data[j] = aux;
+//                     aux = aux2;
+//                 }
+
+//                 fseek(file, -1, SEEK_CUR);
+//                 i++;
+//             }
+//         }
+
+//         make_data_message(backup, data, data_size);
+//         size_data = send_message(backup);
+
+//         if (size_data < 0)
+//             printf("Error: %s\n", strerror(errno));
+//     }
+
+//     fclose(file);
+
+//     // Send end file
+//     make_end_file_message(backup);
+//     ssize_t size = send_message(backup);
+
+//     if (size < 0) {
+//         printf("Error: %s\n", strerror(errno));
+//         return;
+//     }
+
+//     return;
+// }
+
+void test_alloc(void *ptr, const char *msg)
+{
+    if (!ptr)
+    {
+        fprintf(stderr, "Error allocating memory for %s\n", msg);
+        exit(EXIT_FAILURE);
+    }
+}
+
+int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state)
+{
+    ssize_t size;
+    int is_ack = 0;
+    socklen_t addr_len = sizeof(struct sockaddr_ll);
+
+    while (!is_ack)
+    {
+        size = recvfrom(sockfd, packet, sizeof(packet_t), 0, (struct sockaddr *)address, &addr_len);
+        if (size < 0)
+        {
+            perror("Erro ao receber pacote");
+            continue;
+        }
+
+        if (packet->type == ACK)
+        {
+            is_ack = 1;
+        }
+        else
+        {
+            print_packet(packet);
+            send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+        }
+    }
+
+    return is_ack;
+}
+
+void send_video(int sock, packet_t *packet, connection_t *connection, char *video_path)
+{
+    if (!packet || !video_path)
+        return;
+
+    FILE *file = fopen(video_path, "rb");
+    if (!file)
+    {
+        fprintf(stderr, "Error: %s\n", strerror(errno));
+        return;
+    }
+
+    uint8_t *data = malloc(DATA_MAX_LEN);
+    if (!data)
+    {
+        fprintf(stderr, "Memory allocation error\n");
+        fclose(file);
+        return;
+    }
+
+    ssize_t data_size;
+    int current_data_video_index = 0;
+
+    while ((data_size = fread(data, 1, DATA_MAX_LEN, file)) > 0)
+    {
+        build_packet(packet, current_data_video_index, DADOS, (uint8_t *)data, data_size);
+
+        int is_ack = 0;
+        while (!is_ack)
+        {
+            if (send_packet(sock, packet, &connection->address, &connection->state) < 0)
+            {
+                perror("Error sending packet");
+                continue;
+            }
+
+            is_ack = wait_for_ack_socket(sock, packet, &connection->address, &connection->state);
+
+            printf("is_ack: %d\n", is_ack);
+
+#ifdef DEBUG
+            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+#endif
+        }
+
+        current_data_video_index++;
+    }
+
+    free(data);
+    fclose(file);
+
+    build_packet(packet, 0, FIM, NULL, 0);
+    if (send_packet(sock, packet, &connection->address, &connection->state) < 0)
+    {
+        printf("Error: %s\n", strerror(errno));
+        return;
+    }
+}
+
+char *get_video_path(char *video_name)
+{
+    DIR *d;
+    struct dirent *dir;
+    char *video_path = NULL;
+
+    d = opendir(VIDEO_LOCATION);
+    if (!d)
+    {
+        perror("Erro ao abrir diretório de vídeos");
+        return NULL;
+    }
+
+    while ((dir = readdir(d)) != NULL)
+    {
+        if (strcmp(dir->d_name, video_name) == 0)
+        {
+            // Construir o caminho completo do vídeo
+            video_path = malloc(strlen(VIDEO_LOCATION) + strlen(video_name) + 1);
+            if (video_path)
+            {
+                strcpy(video_path, VIDEO_LOCATION);
+                strcat(video_path, video_name);
+            }
+            break;
+        }
+        printf("%s\n", dir->d_name);
+    }
+
+    printf("video_path %s\n", video_path);
+
+    closedir(d);
+    return video_path;
 }
