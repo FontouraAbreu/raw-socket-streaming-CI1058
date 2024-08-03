@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "socket.h"
-#define DATA_MAX_LEN 64
+#define DATA_MAX_LEN 63
 #define DEBUG
 
 packet_t last_packet = {
