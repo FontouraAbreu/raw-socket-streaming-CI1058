@@ -670,6 +670,10 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             fclose(file);
             printf("File received successfully\n");
 
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+
             char command[256];
             snprintf(command, sizeof(command), "sudo vlc %s", output_filename);
 
