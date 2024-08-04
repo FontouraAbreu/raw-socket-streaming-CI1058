@@ -200,9 +200,8 @@ void print_packet(packet_t *pkt)
     printf("  Data: %s\n", pkt->data);
     printf("  CRC: %x\n", pkt->crc);
 }
-/*
-*
-*/
+
+
 int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 {
     if (!packet)
@@ -537,13 +536,24 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
 {
     ssize_t size;
     int last_received_seq_num = -1;
+    int attempt = 0;
 
-    for (;;)
+    while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
-        if (size == -1 || packet->starter_mark != STARTER_MARK)
+        // recv returns -1 if a timeout has happened
+        if (size == -1)
         {
+            attempt++;
+            int temp_random = rand() % attempt * attempt;
+            usleep(temp_random * 1000);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            continue;
+        }
+
+        // send a NACK response
+        if (packet->starter_mark != STARTER_MARK) {
             continue;
         }
 
@@ -623,12 +633,23 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             break;
         }
     }
+
+    if (attempt >= NUM_ATTEMPT)
+    {
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+        printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
+        exit(1);
+        return TIMEOUT_ERROR;
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+    }
+
 }
 
 void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename)
 {
     ssize_t size;
     int last_received_seq_num = -1;
+    int attempt = 0;
 
     FILE *file = fopen(output_filename, "wb");
 
@@ -638,13 +659,17 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
         return;
     }
 
-    while (1)
+    while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
         if (size == -1)
         {
-            perror("recv");
+            attempt++;
+            int temp_random = rand() % attempt * attempt;
+            usleep(temp_random * 1000);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            continue;
             continue;
         }
 
@@ -730,6 +755,15 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
 
             break;
         }
+    }
+
+    if (attempt >= NUM_ATTEMPT)
+    {
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+        printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
+        exit(1);
+        return TIMEOUT_ERROR;
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 }
 
