@@ -8,9 +8,13 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 #include "socket.h"
 #define DATA_MAX_LEN 63
 #define DEBUG
+#define NUM_ATTEMPT 4
+#define TIMEOUT_S 2
+#define TIMEOUT_ERROR -1
 
 packet_t last_packet = {
     .starter_mark = 0,
@@ -34,6 +38,7 @@ int ConexaoRawSocket(char *device)
     struct ifreq ir;
     struct sockaddr_ll endereco;
     struct packet_mreq mr;
+
 
     soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
     if (soquete == -1)
@@ -68,6 +73,12 @@ int ConexaoRawSocket(char *device)
         printf("Erro ao fazer setsockopt\n");
         exit(-1);
     }
+
+    // set socket timeout configuration
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_S;
+    tv.tv_usec = 0;
+    setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
     return soquete;
 }
@@ -189,11 +200,13 @@ void print_packet(packet_t *pkt)
     printf("  Data: %s\n", pkt->data);
     printf("  CRC: %x\n", pkt->crc);
 }
-
+/*
+*
+*/
 int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 {
     if (!packet)
-        return -1;
+        return -2;
 
 #ifdef DEBUG
     printf("[ETHBKP][WACKOE] Waiting acknowledgement\n");
@@ -202,15 +215,22 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
     ssize_t size = -1;
     int is_ack = 0;
     unsigned char buffer[sizeof(packet_union_t)] = {0};
+    int attempt = 0;
 
-    for (;;)
+    while (!is_ack && attempt < NUM_ATTEMPT)
     {
         // size = recv(_socket, buffer, sizeof(buffer), 0);
         size = recv(_socket, packet, sizeof(packet_t), 0);
+        print_packet(packet);
 
+        // recv returns -1 if a timeout has happened
         if (size == -1)
         {
-            break;
+            attempt++;
+            int temp_random = rand() % attempt * attempt;
+            usleep(temp_random * 1000);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            continue;
         }
 
         // buffer_to_message(backup->recv_buffer, backup->recv_message);
@@ -218,7 +238,6 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
         if (packet->starter_mark != STARTER_MARK)
             continue;
 
-        print_packet(packet);
         if (packet->type == ERRO)
         {
             printf("Erro ao receber pacote\n");
@@ -227,8 +246,11 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             break;
         }
 
+        // if packet type is not ACK
         if (packet->type != ACK && packet->type != NACK)
+        {
             continue;
+        }
 
         if (packet->type == ACK)
         {
@@ -236,7 +258,17 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             is_ack = 1;
         }
 
+
         break;
+    }
+
+    if (attempt >= NUM_ATTEMPT)
+    {
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+        printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
+        exit(1);
+        return TIMEOUT_ERROR;
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
     return is_ack;
@@ -253,7 +285,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     int is_ack = 0;
     int error = -1;
 
-    while (!is_ack)
+    while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
@@ -270,6 +302,11 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     {
         fprintf(stderr, "Error on sendto: %s\n", strerror(errno));
         exit(-1);
+    }
+
+    if (is_ack == TIMEOUT_ERROR)
+    {
+        return TIMEOUT_ERROR;
     }
 
     return size;
@@ -674,6 +711,10 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             fclose(file);
             printf("File received successfully\n");
 
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+
             char command[256];
             snprintf(command, sizeof(command), "sudo vlc %s", output_filename);
 
@@ -703,9 +744,11 @@ void test_alloc(void *ptr, const char *msg)
 
 int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state)
 {
+    srand(time(NULL));
     ssize_t size;
     int is_ack = 0;
     socklen_t addr_len = sizeof(struct sockaddr_ll);
+    int send_status;
 
     while (!is_ack)
     {
@@ -723,7 +766,14 @@ int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *addres
         else
         {
             print_packet(packet);
-            send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+            send_status = send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+        }
+
+        if (send_status == TIMEOUT_ERROR)
+        {
+            printf("timeout occurred. Finishing program!!\n");
+            exit(1);
+            return TIMEOUT_ERROR;
         }
     }
 
@@ -764,7 +814,7 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
         build_packet(packet, current_data_video_index, DADOS, (unsigned char *)data, data_size);
 
         int is_ack = 0;
-        while (!is_ack)
+        while (!is_ack && is_ack != -1)
         {
             if (send_packet(sock, packet, &connection->address, &connection->state) < 0)
             {
@@ -774,11 +824,17 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
 
             is_ack = wait_for_ack_socket(sock, packet, &connection->address, &connection->state);
 
-            printf("is_ack: %d\n", is_ack);
+            // printf("is_ack: %d\n", is_ack);
 
 #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
 #endif
+        }
+
+        if (is_ack == -1)
+        {
+            printf("received a timeout");
+            exit(1);
         }
 
         current_data_video_index++;
