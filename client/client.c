@@ -2,7 +2,7 @@
 
 connection_t connection;
 
-#define VIDEO_CLIENT_LOCATION "./videos_client/teste.mp4"
+#define VIDEO_CLIENT_LOCATION "./videos_client/testevideo.mp4"
 
 typedef enum
 {
@@ -17,7 +17,7 @@ void init_client(char *interface)
     connection.socket = ConexaoRawSocket(interface);
 
     // Destination MAC address (example, use the actual destination address)
-    uint8_t dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
+    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
 
     // Prepare sockaddr_ll structure
     memset(&connection.address, 0, sizeof(connection.address));
@@ -144,7 +144,7 @@ video_t *request_videos()
     packet.seq_num = 0;
     packet.type = LISTAR;
     memset(packet.data, 0, DATA_LEN);
-    packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+    packet.crc = calculate_crc8((unsigned char *)&packet, sizeof(packet_t) - 1);
     video_t *videos = NULL;
 
     send_packet(connection.socket, &packet, &connection.address, &connection.state);
@@ -169,7 +169,7 @@ void request_download(char *video_name)
     packet.seq_num = 0;
     packet.type = BAIXAR;
     memcpy(packet.data, video_name, strlen(video_name));
-    packet.crc = calculate_crc8((uint8_t *)&packet, sizeof(packet_t) - 1);
+    packet.crc = calculate_crc8((unsigned char *)&packet, sizeof(packet_t) - 1);
 
     send_packet(connection.socket, &packet, &connection.address, &connection.state);
 }

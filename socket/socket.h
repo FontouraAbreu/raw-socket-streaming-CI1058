@@ -27,17 +27,17 @@ typedef enum {
 } state_t;
 
 typedef struct {
-    uint8_t starter_mark: 8;
-    uint8_t size: 6;
-    uint8_t seq_num: 5;
-    uint8_t type: 5;
-    uint8_t data[DATA_LEN];
-    uint8_t crc: 8;
+    unsigned char starter_mark: 8;
+    unsigned char size: 6;
+    unsigned char seq_num: 5;
+    unsigned char type: 5;
+    unsigned char data[DATA_LEN];
+    unsigned char crc: 8;
 } packet_t;
 
 typedef union {
     packet_t packet;
-    uint8_t raw[sizeof(packet_t)];
+    unsigned char raw[sizeof(packet_t)];
 } packet_union_t;
 
 typedef struct {
@@ -70,13 +70,13 @@ typedef struct {
 #define ERRO 31 // bx11111
 
 
-uint8_t calculate_crc8(const uint8_t *data, size_t len);
+unsigned char calculate_crc8(const unsigned char *data, size_t len);
 int ConexaoRawSocket(char *device);
 int listen_socket(int _socket, packet_t *packet);
 
 video_t *init_video_t();
 
-void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len);
+void build_packet(packet_t *pkt, unsigned char seq_num, unsigned char type, unsigned char *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void receive_packet(int sock, packet_t *packet, connection_t *connection);
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection, video_list_t *video_list);

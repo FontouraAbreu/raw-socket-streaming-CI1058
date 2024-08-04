@@ -72,7 +72,7 @@ int ConexaoRawSocket(char *device)
     return soquete;
 }
 
-void buffer_to_message(uint8_t *buffer, packet_t *packet)
+void buffer_to_message(unsigned char *buffer, packet_t *packet)
 {
     packet_union_t pu;
     memcpy(pu.raw, buffer, sizeof(packet_union_t));
@@ -87,7 +87,7 @@ void buffer_to_message(uint8_t *buffer, packet_t *packet)
 // Listen to a socket, if a packet is received, it is copied to the output packet
 int listen_socket(int _socket, packet_t *packet)
 {
-    uint8_t buffer[sizeof(packet_union_t)] = {0};
+    unsigned char buffer[sizeof(packet_union_t)] = {0};
     ssize_t bytes_received = recv(_socket, buffer, sizeof(buffer), 0);
 
 // check if it is a duplicate packet using ifrindex
@@ -151,9 +151,9 @@ int listen_socket(int _socket, packet_t *packet)
     memcpy(pu.raw, buffer, bytes_received);
 
     // Validate packet
-    uint8_t received_crc = pu.packet.crc;
+    unsigned char received_crc = pu.packet.crc;
     pu.packet.crc = 0; // Zero out CRC for validation
-    uint8_t computed_crc = calculate_crc8(pu.raw, sizeof(pu.raw) - 1);
+    unsigned char computed_crc = calculate_crc8(pu.raw, sizeof(pu.raw) - 1);
 
     // error handling
     if (received_crc != computed_crc)
@@ -168,7 +168,7 @@ int listen_socket(int _socket, packet_t *packet)
     return is_ack;
 }
 
-void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, size_t data_len)
+void build_packet(packet_t *pkt, unsigned char seq_num, unsigned char type, unsigned char *data, size_t data_len)
 {
     pkt->starter_mark = STARTER_MARK;
     pkt->size = data_len;
@@ -176,7 +176,7 @@ void build_packet(packet_t *pkt, uint8_t seq_num, uint8_t type, uint8_t *data, s
     pkt->type = type;
     memset(pkt->data, 0, DATA_LEN);
     memcpy(pkt->data, data, data_len);
-    pkt->crc = calculate_crc8((uint8_t *)pkt, sizeof(packet_t) - 1);
+    pkt->crc = calculate_crc8((unsigned char *)pkt, sizeof(packet_t) - 1);
 }
 
 void print_packet(packet_t *pkt)
@@ -201,7 +201,7 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 
     ssize_t size = -1;
     int is_ack = 0;
-    uint8_t buffer[sizeof(packet_union_t)] = {0};
+    unsigned char buffer[sizeof(packet_union_t)] = {0};
 
     for (;;)
     {
@@ -341,13 +341,13 @@ ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int
 }
 
 // CRC-8 calculation function
-uint8_t calculate_crc8(const uint8_t *data, size_t len)
+unsigned char calculate_crc8(const unsigned char *data, size_t len)
 {
-    uint8_t crc = 0x00;
+    unsigned char crc = 0x00;
     for (size_t i = 0; i < len; ++i)
     {
         crc ^= data[i];
-        for (uint8_t j = 0; j < 8; ++j)
+        for (unsigned char j = 0; j < 8; ++j)
         {
             if (crc & 0x80)
                 crc = (crc << 1) ^ 0x07;
@@ -592,12 +592,23 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             continue;
         }
 
+        int data_size;
+        unsigned char *data = malloc(DATA_MAX_LEN);
+        test_alloc(data, "receive_file data buffer");
+
         if (packet->type == DADOS)
         {
             printf("[ETHBKP][RCVM] Message received: ");
             print_packet(packet);
+            data_size = packet->size;
+            unsigned char *data = malloc(data_size);
+            memcpy(data, packet->data, data_size);
 
-            size_t written = fwrite(packet->data, 1, packet->size, file);
+            size_t written = fwrite(
+                packet->data,
+                sizeof(*packet->data),
+                packet->size,
+                file);
             if (written != packet->size)
             {
                 fprintf(stderr, "Error writing to file\n");
@@ -613,11 +624,17 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
 
         if (packet->type == FIM)
         {
+            // if (chmod(file, 0644) != 0)
+            // {
+            //     perror("Erro ao ajustar permissões do arquivo");
+            //     exit(EXIT_FAILURE);
+            // }
+
             fclose(file);
             printf("File received successfully\n");
 
             char command[256];
-            snprintf(command, sizeof(command), "vlc %s", output_filename);
+            snprintf(command, sizeof(command), "sudo vlc %s", output_filename);
 
             int result = system(command);
             if (result == -1)
@@ -684,7 +701,7 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
         return;
     }
 
-    uint8_t *data = malloc(DATA_MAX_LEN);
+    unsigned char *data = malloc(DATA_MAX_LEN);
     if (!data)
     {
         fprintf(stderr, "Memory allocation error\n");
@@ -694,10 +711,16 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
 
     ssize_t data_size;
     int current_data_video_index = 0;
+    unsigned char aux, aux2;
 
-    while ((data_size = fread(data, 1, DATA_MAX_LEN, file)) > 0)
+    while (!feof(file))
     {
-        build_packet(packet, current_data_video_index, DADOS, (uint8_t *)data, data_size);
+        data_size = fread(data, sizeof(*data), DATA_MAX_LEN, file);
+
+        if (data_size <= 0)
+            break;
+
+        build_packet(packet, current_data_video_index, DADOS, (unsigned char *)data, data_size);
 
         int is_ack = 0;
         while (!is_ack)

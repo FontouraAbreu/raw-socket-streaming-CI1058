@@ -14,7 +14,7 @@ void init_server(char *interface)
     connection.socket = ConexaoRawSocket(interface);
 
     // Destination MAC address (example, use the actual destination address)
-    uint8_t dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
+    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
 
     // Prepare sockaddr_ll structure
     memset(&connection.address, 0, sizeof(connection.address));
@@ -234,7 +234,7 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
     {
         // Send the current video packet
         char *video_name = videos->videos[current_video_index].name;
-        build_packet(packet, current_video_index, DADOS, (uint8_t *)video_name, strlen(video_name));
+        build_packet(packet, current_video_index, DADOS, (unsigned char *)video_name, strlen(video_name));
         packet_union_t pu;
         memcpy(pu.raw, packet, sizeof(packet_t));
 
