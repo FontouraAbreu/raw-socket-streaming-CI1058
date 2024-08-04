@@ -325,7 +325,28 @@ ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int
     connection_state = *connection_state * -1;
 
     ssize_t size;
-    int error = -1;
+
+    printf("Sending packet\n");
+    print_packet(packet);
+    size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
+
+    if (size < 0)
+    {
+        fprintf(stderr, "Error on sendto: %s\n", strerror(errno));
+        exit(-1);
+    }
+
+    return size;
+}
+
+ssize_t send_nack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
+{
+    packet_union_t pu;
+    memcpy(pu.raw, packet, sizeof(packet_t));
+
+    connection_state = *connection_state * -1;
+
+    ssize_t size;
 
     printf("Sending packet\n");
     print_packet(packet);
@@ -402,11 +423,12 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         printf("[ETHBKP][RCVM] Message received: ");
         print_packet(packet);
 
-        // error = check_error(packet);
-        // if (error > -1) {
-        //     send_packet(sock, &last_packet, &connection.address, connection_state);
-        //     break;
-        // }
+        error = check_crc(packet);
+        if (error)
+        {
+            send_nack(sock, packet, &connection->address, &connection->state);
+            break;
+        }
 
         // envia um ACK
         break;
@@ -446,23 +468,21 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             //     continue;
 
 #ifdef DEBUG
-#endif
         printf("[ETHBKP][RCVM] Message received: ");
+#endif
 
-        // error = check_error(packet);
-        // if (error > -1) {
-        //     send_packet(sock, &last_packet, &connection.address, connection_state);
-        //     break;
-        // }
+        error = check_crc(packet);
+        if (error)
+        {
+            send_nack(sock, packet, &connection->address, &connection->state);
+            break;
+        }
 
         // recebe um pacote de inicio de sequencia
         if (packet->type == INICIO_SEQ)
         {
             break;
         }
-
-        // if (check_message_parity(packet))
-        //     break;
     };
     packet_t packet_ack;
 
@@ -498,6 +518,20 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
         {
             continue;
+        }
+
+        if (packet->type == ERRO)
+        {
+            printf("Video não encontrado: %s\n");
+            break;
+        }
+
+        int error = check_crc(packet);
+        if (error)
+        {
+            printf("Erro no CRC\n");
+            send_nack(sock, packet, &connection->address, &connection->state);
+            break;
         }
 
         if (packet->type == DADOS)
@@ -590,6 +624,13 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
         if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
         {
             continue;
+        }
+
+        int error = check_crc(packet);
+        if (error)
+        {
+            send_nack(sock, packet, &connection->address, &connection->state);
+            break;
         }
 
         int data_size;
@@ -783,8 +824,18 @@ char *get_video_path(char *video_name)
         printf("%s\n", dir->d_name);
     }
 
+    printf("video_path %s\n", VIDEO_LOCATION);
     printf("video_path %s\n", video_path);
 
     closedir(d);
     return video_path;
+}
+
+int check_crc(packet_t *packet)
+{
+    unsigned char received_crc = packet->crc;
+    packet->crc = 0; // Zero out CRC for validation
+    unsigned char computed_crc = calculate_crc8((unsigned char *)packet, sizeof(packet_t) - 1);
+
+    return received_crc != computed_crc;
 }

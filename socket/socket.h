@@ -26,6 +26,21 @@ typedef enum {
     SENDING = -1,
 } state_t;
 
+typedef enum {
+    NOT_FOUND = 0,
+    FULL_DISK = 1,
+} errors_type_t;
+
+typedef enum {
+    NOT_FOUND_MSG,
+    FULL_DISK_MSG,
+} errors_msg_t;
+
+// const char *error_messages[] = {
+//     "Vídeo não encontrado",
+//     "Disco cheio",
+// };
+
 typedef struct {
     unsigned char starter_mark: 8;
     unsigned char size: 6;
@@ -86,8 +101,10 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 // Função para enviar mensagens
 ssize_t send_message(int socket, packet_t *packet);
 ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
+ssize_t send_nack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void print_packet(packet_t *pkt);
 int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state);
+int check_crc(packet_t *packet);
 
 //Função para enviar um video
 void send_video(int sock, packet_t *packet, connection_t *connection, char *video_path);

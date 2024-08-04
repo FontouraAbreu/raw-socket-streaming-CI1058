@@ -168,7 +168,8 @@ void request_download(char *video_name)
     packet.size = 0;
     packet.seq_num = 0;
     packet.type = BAIXAR;
-    memcpy(packet.data, video_name, strlen(video_name));
+    memcpy(packet.data, video_name, strlen(video_name) + 1);
+    printf("Enviando pacote de download com nome %s\n\n", packet.data);
     packet.crc = calculate_crc8((unsigned char *)&packet, sizeof(packet_t) - 1);
 
     send_packet(connection.socket, &packet, &connection.address, &connection.state);
