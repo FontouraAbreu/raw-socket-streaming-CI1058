@@ -334,7 +334,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
-        // code_vpn_strings(packet);
+        code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -373,7 +373,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     while (!is_ack)
     {
-        // code_vpn_strings(packet);
+        code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -492,7 +492,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        // decode_vpn_strings(packet);
+        decode_vpn_strings(packet);
 
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
@@ -511,12 +511,12 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         printf("[ETHBKP][RCVM] Message received: ");
         print_packet(packet);
 
-        error = check_crc(packet);
-        if (error)
-        {
-            send_nack(sock, packet, &connection->address, &connection->state);
-            break;
-        }
+        // error = check_crc(packet);
+        // if (error)
+        // {
+        //     send_nack(sock, packet, &connection->address, &connection->state);
+        //     break;
+        // }
 
         // envia um ACK
         break;
@@ -542,7 +542,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        // decode_vpn_strings(packet);
+        decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
             continue;
@@ -560,11 +560,11 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 #endif
 
         error = check_crc(packet);
-        if (error)
-        {
-            send_nack(sock, packet, &connection->address, &connection->state);
-            break;
-        }
+        // if (error)
+        // {
+        //     send_nack(sock, packet, &connection->address, &connection->state);
+        //     break;
+        // }
 
         // recebe um pacote de inicio de sequencia
         if (packet->type == INICIO_SEQ)
@@ -620,7 +620,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             continue;
         }
 
-        // decode_vpn_strings(packet);
+        decode_vpn_strings(packet);
 
         // send a NACK response
         if (packet->starter_mark != STARTER_MARK) {
@@ -637,13 +637,13 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             break;
         }
 
-        int error = check_crc(packet);
-        if (error)
-        {
-            printf("Erro no CRC\n");
-            send_nack(sock, packet, &connection->address, &connection->state);
-            break;
-        }
+        // int error = check_crc(packet);
+        // if (error)
+        // {
+        //     printf("Erro no CRC\n");
+        //     send_nack(sock, packet, &connection->address, &connection->state);
+        //     break;
+        // }
 
         // Verifica se é um descritor (nome do vídeo)
         if (packet->type == DESCRITOR && packet->seq_num == 0)
@@ -753,7 +753,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             continue;
         }
 
-        // decode_vpn_strings(packet);
+        decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
@@ -770,12 +770,12 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             continue;
         }
 
-        int error = check_crc(packet);
-        if (error)
-        {
-            send_nack(sock, packet, &connection->address, &connection->state);
-            break;
-        }
+        // int error = check_crc(packet);
+        // if (error)
+        // {
+        //     send_nack(sock, packet, &connection->address, &connection->state);
+        //     break;
+        // }
 
         int data_size;
         unsigned char *data = malloc(DATA_MAX_LEN);
