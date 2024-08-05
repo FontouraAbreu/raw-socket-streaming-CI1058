@@ -232,6 +232,7 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
+        attempt = 0;
 
         // buffer_to_message(backup->recv_buffer, backup->recv_message);
 
@@ -619,6 +620,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
             continue;
         }
+        attempt = 0;
 
         decode_vpn_strings(packet);
 
@@ -752,6 +754,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
             continue;
         }
+        attempt = 0;
 
         decode_vpn_strings(packet);
 
