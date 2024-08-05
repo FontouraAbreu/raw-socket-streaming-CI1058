@@ -108,6 +108,26 @@ int main(int argc, char **argv)
 // return EXIT_SUCCESS;
 // }
 
+// pega duração do video
+int get_video_duration(char *video_location, char *video_name)
+{
+    char command[1024];
+    sprintf(command, "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s%s", video_location, video_name);
+
+    FILE *fp = popen(command, "r");
+    if (!fp)
+    {
+        perror("Erro ao executar o comando ffprobe");
+        return -1;
+    }
+
+    char duration_str[10];
+    fgets(duration_str, sizeof(duration_str), fp);
+    pclose(fp);
+
+    return atoi(duration_str);
+}
+
 video_list_t *list_videos()
 {
     DIR *directory;
@@ -147,7 +167,10 @@ video_list_t *list_videos()
                     free(video_list);
                     return NULL;
                 }
-                video.size = entry->d_reclen;                                            // Assumindo que d_reclen contém o tamanho do arquivo
+                video.size = entry->d_reclen;
+
+                //pega a duração do video
+                video.duration = get_video_duration(VIDEO_LOCATION, entry->d_name);
                 video.path = malloc(strlen(VIDEO_LOCATION) + strlen(entry->d_name) + 1); // Alocando memória para o caminho completo
                 if (!video.path)
                 {
@@ -230,13 +253,23 @@ int wait_for_ack(int sockfd, packet_t *packet, struct sockaddr_ll *address, int 
 void process_videos(connection_t connection, packet_t *packet, video_list_t *videos)
 {
     int current_video_index = 0;
+    int num_seq = 0;
     int total_videos = videos->num_videos;
 
     while (current_video_index < total_videos)
     {
         // Send the current video packet
         char *video_name = videos->videos[current_video_index].name;
-        build_packet(packet, current_video_index, DADOS, (unsigned char *)video_name, strlen(video_name));
+        int video_name_length = strlen(video_name);
+        int video_duration = videos->videos[current_video_index].duration;
+        int video_size = videos->videos[current_video_index].size;
+
+        printf("Enviando pacote de video %s\n", video_name);
+        printf("Duração: %d\n", video_duration);
+        printf("Tamanho: %d\n", video_size);
+
+        // Send the video name packet
+        build_packet(packet, num_seq, DESCRITOR, (unsigned char *)video_name, video_name_length);
         packet_union_t pu;
         memcpy(pu.raw, packet, sizeof(packet_t));
 
@@ -254,13 +287,65 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
 
-            printf("is_ack: %d\n", is_ack);
+            printf("RECEBEU ACK DO NOME DO VIDEO: %d\n", is_ack);
 
-#ifdef DEBUG
+        #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-#endif
+        #endif
         }
 
+        // Send the video size packet
+        num_seq++;
+        build_packet(packet, num_seq, TAMANHO, (unsigned char *)&video_size, sizeof(int));
+        memcpy(pu.raw, packet, sizeof(packet_t));
+
+        is_ack = 0;
+
+        while (!is_ack)
+        {
+            printf("Enviando pacote de tamanho\n");
+            size = sendto(connection.socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)&connection.address, sizeof(connection.address));
+            if (size < 0)
+            {
+                perror("Error sending packet");
+                continue;
+            }
+
+            is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
+
+            printf("RECEBEU ACK DO TAMANHO DO VIDEO: %d\n", is_ack);
+
+        #ifdef DEBUG
+            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+        #endif
+        }
+
+        // Send the video duration packet
+        num_seq++;
+        build_packet(packet, num_seq, DURACAO, (unsigned char *)&video_duration, sizeof(int));
+        memcpy(pu.raw, packet, sizeof(packet_t));
+
+        is_ack = 0;
+
+        while (!is_ack)
+        {
+            size = sendto(connection.socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)&connection.address, sizeof(connection.address));
+            if (size < 0)
+            {
+                perror("Error sending packet");
+                continue;
+            }
+
+            is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
+
+            printf("is_ack: %d\n", is_ack);
+
+        #ifdef DEBUG
+            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
+        #endif
+        }
+
+        num_seq = 0;
         current_video_index++;
     }
 

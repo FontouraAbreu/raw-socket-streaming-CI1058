@@ -41,7 +41,6 @@ int ConexaoRawSocket(char *device)
     struct sockaddr_ll endereco;
     struct packet_mreq mr;
 
-
     soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
     if (soquete == -1)
     {
@@ -80,7 +79,7 @@ int ConexaoRawSocket(char *device)
     struct timeval tv;
     tv.tv_sec = TIMEOUT_S;
     tv.tv_usec = 0;
-    setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 
     return soquete;
 }
@@ -230,7 +229,7 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
 
@@ -258,7 +257,6 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             printf("Received ACK\n");
             is_ack = 1;
         }
-
 
         break;
     }
@@ -427,6 +425,7 @@ video_t *init_video_t()
     }
     video->name = NULL;
     video->path = NULL;
+    video->duration = 0;
     video->size = 0;
     return video;
 }
@@ -534,11 +533,28 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     }
 }
 
+void add_video_to_list(video_list_t *video_list, video_t *video)
+{
+    video_t *new_videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
+    if (!new_videos)
+    {
+        // Handle error, possibly free previously allocated resources and exit or return an error
+        free(video);
+        return;
+    }
+
+    video_list->videos = new_videos;
+    video_list->videos[video_list->num_videos] = *video;
+    video_list->num_videos++;
+}
+
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection, video_list_t *video_list)
 {
     ssize_t size;
-    int last_received_seq_num = -1;
     int attempt = 0;
+    ssize_t size_tam;
+    int last_received_seq_num = 0;
+    video_t *current_video = init_video_t();
 
     while (1 && attempt < NUM_ATTEMPT)
     {
@@ -564,14 +580,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             continue;
         }
 
-        if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
-        {
-            continue;
-        }
-
         if (packet->type == ERRO)
         {
-            printf("Video não encontrado: %s\n");
             break;
         }
 
@@ -583,47 +593,62 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             break;
         }
 
-        if (packet->type == DADOS)
+        // Verifica se é um descritor (nome do vídeo)
+        if (packet->type == DESCRITOR && packet->seq_num == 0)
         {
-            printf("[ETHBKP][RCVM] Message received: ");
             print_packet(packet);
+            // Supondo que o nome do vídeo esteja nos dados do pacote
+            current_video->name = malloc(packet->size + 1); // +1 para o terminador nulo
+            strcpy(current_video->name, packet->data);
             last_received_seq_num = packet->seq_num;
 
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
+            continue;
+        }
 
-            video_t *video = init_video_t();
-            if (video)
-            {
-                video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
-                if (!video_list->videos)
-                {
-                    // Handle error, possibly free previously allocated resources and exit or return an error
-                    free(video);
-                }
-                else
-                {
-                    video->name = (char *)malloc(sizeof(char) * packet->size);
-                    if (video->name)
-                    {
-                        memcpy(video->name, packet->data, packet->size);
-                        video->size = packet->size;
-                        video->path = malloc(sizeof(char) * (strlen(VIDEO_LOCATION) + strlen(video->name) + 1));
-                        if (video->path)
-                        {
-                            strcpy(video->path, VIDEO_LOCATION);
-                            strcat(video->path, video->name);
-                        }
-                        video_list->videos[video_list->num_videos] = *video;
-                        video_list->num_videos++;
-                    }
-                    else
-                    {
-                        free(video);
-                    }
-                }
+        // Verifica se é o tamanho do vídeo
+        if (packet->type == TAMANHO && packet->seq_num == 1)
+        {
+            print_packet(packet);
+            // Supondo que o tamanho esteja nos dados do pacote como um inteiro
+            current_video->size = *((int *)packet->data); // Ajuste conforme necessário
+            last_received_seq_num = packet->seq_num;
+
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+            continue;
+        }
+
+        // Verifica se é a duração do vídeo
+        if (packet->type == DURACAO && packet->seq_num == 2)
+        {
+            printf("[ETHBKP][RCVM] Duração do vídeo recebida: ");
+            print_packet(packet);
+            video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
+            // Supondo que a duração esteja nos dados do pacote como um inteiro
+            current_video->duration = *((int *)packet->data); // Ajuste conforme necessário
+            last_received_seq_num = packet->seq_num;
+
+
+            printf("Adicionando video na lista\n");
+            printf("Nome: %s\n", current_video->name);
+            printf("Tamanho: %d\n", current_video->size);
+            printf("Duração: %d\n", current_video->duration);
+            // add_video_to_list(video_list, &current_video);
+
+            if (video_list != NULL) {
+                printf("Num videos: %d\n", video_list->num_videos);
+                video_list->videos[video_list->num_videos] = *current_video;
+                video_list->num_videos++;
             }
+
+            packet_t packet_ack;
+            build_packet(&packet_ack, 0, ACK, NULL, 0);
+            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+            continue;
         }
 
         if (packet->type == FIM)

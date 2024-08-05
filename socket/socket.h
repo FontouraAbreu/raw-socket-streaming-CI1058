@@ -65,6 +65,7 @@ typedef struct {
     char *name; // file name
     char *path; // absolute path to video file
     int size; // in bytes
+    int duration; // in seconds
 } video_t;
 
 typedef struct {
@@ -79,6 +80,8 @@ typedef struct {
 #define BAIXAR 11 // bx01011
 #define PRINTAR 16 // bx10000
 #define DESCRITOR 17 // bx10001
+#define TAMANHO 20 // bx10010
+#define DURACAO 21 // bx10011
 #define DADOS 18 // bx10010
 #define INICIO_SEQ 29 //
 #define FIM 30 // bx11110
@@ -109,6 +112,7 @@ int check_crc(packet_t *packet);
 //Função para enviar um video
 void send_video(int sock, packet_t *packet, connection_t *connection, char *video_path);
 void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename);
+
 //retorna path do video selecionado
 char* get_video_path(char *video_name);
 void test_alloc(void *ptr, const char *msg);

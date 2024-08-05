@@ -74,7 +74,9 @@ int main(int argc, char **argv)
                 printf("Videos disponiveis:\n");
                 for (int i = 0; i < video_list->num_videos; i++)
                 {
-                    printf("%d. %s\n", i + 1, video_list->videos[i].path);
+                    printf("%d. %s\n", i + 1, video_list->videos[i].name);
+                    printf("Tamanho: %d\n", video_list->videos[i].size);
+                    printf("Duracao: %ds\n", video_list->videos[i].duration);
                 }
             }
 
