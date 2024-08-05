@@ -118,8 +118,9 @@ int main(int argc, char **argv)
             {
                 printf("Recebendo dados do video...\n");
                 while(receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size) < 0) {
-                    printf("Erro ao receber video\n");
+                    printf("Erro ao receber video:\n");
                     printf("Reinicio da transferencia\n");
+                    sleep(5);
                     request_download(chosen_video.name);
                     wait_for_init_sequence(connection.socket, &packet, &connection);
 

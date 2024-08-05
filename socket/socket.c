@@ -320,7 +320,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -359,7 +359,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     while (!is_ack)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -478,7 +478,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
@@ -528,7 +528,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
             continue;
@@ -606,7 +606,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         // send a NACK response
         if (packet->starter_mark != STARTER_MARK) {
@@ -739,7 +739,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
@@ -804,6 +804,8 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             if (st.st_size != expected_size)
             {
                 printf("Received file size does not match the expected size\n");
+                printf("\tTamanho do video: %ld\n", st.st_size);
+                printf("\tTamanho esperado: %ld\n", expected_size);
                 return -1;
             }
 
