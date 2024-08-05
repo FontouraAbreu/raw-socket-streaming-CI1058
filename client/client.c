@@ -97,16 +97,17 @@ int main(int argc, char **argv)
                 printf("Nenhum video disponivel, liste os videos para ver o catalogo\n");
                 break;
             }
-            int chosen_video;
-            scanf("%d", &chosen_video);
-            if (chosen_video < 1 || chosen_video > video_list->num_videos)
+            int chosen_video_index;
+            scanf("%d", &chosen_video_index);
+            if (chosen_video_index < 1 || chosen_video_index > video_list->num_videos)
             {
                 printf("Opcao invalida\n");
                 break;
             }
-            printf("Baixando video %s\n", video_list->videos[chosen_video - 1].name);
+            video_t chosen_video = video_list->videos[chosen_video_index - 1];
+            printf("Baixando video %s\n", chosen_video.name);
 
-            request_download(video_list->videos[chosen_video - 1].name);
+            request_download(chosen_video.name);
 
             wait_for_init_sequence(connection.socket, &packet, &connection);
 
@@ -116,7 +117,20 @@ int main(int argc, char **argv)
             if (packet.type == INICIO_SEQ)
             {
                 printf("Recebendo dados do video...\n");
-                receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION);
+                while(receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size) < 0) {
+                    printf("Erro ao receber video\n");
+                    printf("Reinicio da transferencia\n");
+                    request_download(chosen_video.name);
+                    wait_for_init_sequence(connection.socket, &packet, &connection);
+
+                    if (packet.type != ACK)
+                        print_packet(&packet);
+
+                    if (packet.type == INICIO_SEQ)
+                    {
+                        printf("Recebendo dados do video...\n");
+                    }
+                }
             }
 
             break;

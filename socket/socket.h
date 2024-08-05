@@ -111,7 +111,7 @@ int check_crc(packet_t *packet);
 
 //Função para enviar um video
 void send_video(int sock, packet_t *packet, connection_t *connection, char *video_path);
-void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename);
+int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename, int expected_size);
 
 //retorna path do video selecionado
 char* get_video_path(char *video_name);

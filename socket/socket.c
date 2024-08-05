@@ -707,9 +707,12 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
+    // return the list of videos
+    return video_list;
+
 }
 
-void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename)
+int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename, int expected_size)
 {
     ssize_t size;
     int last_received_seq_num = -1;
@@ -795,6 +798,15 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             fclose(file);
             printf("File received successfully\n");
 
+            // check if the size of the received file is the same as the expected size
+            struct stat st;
+            stat(output_filename, &st);
+            if (st.st_size != expected_size)
+            {
+                printf("Received file size does not match the expected size\n");
+                return -1;
+            }
+
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
@@ -843,13 +855,6 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
                 perror("Failed to change file ownership");
                 exit(EXIT_FAILURE);
             }
-
-            // temporarily change the effective user ID to the extracted user's ID
-            // if (setuid(uid) != 0)
-            // {
-            //     perror("Failed to change user ID");
-            //     exit(EXIT_FAILURE);
-            // }
 
             char command[256];
             snprintf(command, sizeof(command), "sudo -u %s vlc %s", logged_user, output_filename);
