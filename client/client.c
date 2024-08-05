@@ -75,7 +75,15 @@ int main(int argc, char **argv)
                 for (int i = 0; i < video_list->num_videos; i++)
                 {
                     printf("%d. %s\n", i + 1, video_list->videos[i].name);
-                    printf("Tamanho: %d\n", video_list->videos[i].size);
+                    // print video size in MB/GB
+                    if (video_list->videos[i].size > 1024 * 1024)
+                    {
+                        printf("Tamanho: %.2f MB\n", (float)video_list->videos[i].size / (1024 * 1024));
+                    }
+                    else
+                    {
+                        printf("Tamanho: %.2f KB\n", (float)video_list->videos[i].size / 1024);
+                    }
                     printf("Duracao: %ds\n", video_list->videos[i].duration);
                 }
             }
