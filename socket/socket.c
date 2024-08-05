@@ -17,6 +17,7 @@
 #define NUM_ATTEMPT 4
 #define TIMEOUT_S 2
 #define TIMEOUT_ERROR -1
+#define ESCAPE_CHAR 0xFF
 
 packet_t last_packet = {
     .starter_mark = 0,
@@ -287,8 +288,8 @@ void code_vpn_strings(packet_t *packet) {
     for (i = 0, j = 0; i < DATA_MAX_LEN; i++) {
         if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
             printf("Found 0x81 or 0x88\n");
-            tempBuffer[j++] = 0x7D; // Insere byte de escape
-            exit(1);
+            tempBuffer[j++] = ESCAPE_CHAR; // Insere byte de escape
+            // exit(1);
         }
         tempBuffer[j++] = packet->data[i]; // Copia o byte original
     }
@@ -299,7 +300,7 @@ void code_vpn_strings(packet_t *packet) {
     free(tempBuffer);
 }
 
-// checks for the escape character 0x7D in the packet data
+// checks for the escape character ESCAPE_CHAR in the packet data
 // if found, uses byte stuffing to unescape it
 void decode_vpn_strings(packet_t *packet) {
     int i, j;
@@ -310,7 +311,7 @@ void decode_vpn_strings(packet_t *packet) {
     }
 
     for (i = 0, j = 0; i < packet->size; i++) {
-        if (packet->data[i] == 0x7D && i + 1 < packet->size) {
+        if (packet->data[i] == ESCAPE_CHAR && i + 1 < packet->size) {
             i++; // Pula o byte de escape
         }
         tempBuffer[j++] = packet->data[i]; // Copia o byte especial sem modificação
@@ -823,12 +824,18 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 printf("Received file size does not match the expected size\n");
                 printf("\tTamanho do video: %ld\n", st.st_size);
                 printf("\tTamanho esperado: %ld\n", expected_size);
-                return -1;
+                // packet_t packet_ack;
+                // build_packet(&packet_ack, 0, ACK, NULL, 0);
+                // send_ack(sock, &packet_ack, &connection->address, &connection->state);
+                // return -1;
+            }
+            else {
+                printf("Received file size matches the expected size\n");
+                packet_t packet_ack;
+                build_packet(&packet_ack, 0, ACK, NULL, 0);
+                send_ack(sock, &packet_ack, &connection->address, &connection->state);
             }
 
-            packet_t packet_ack;
-            build_packet(&packet_ack, 0, ACK, NULL, 0);
-            send_ack(sock, &packet_ack, &connection->address, &connection->state);
 
             // set the file rw-rw-rw- permissions
             if (chmod(output_filename, 0666) != 0)
