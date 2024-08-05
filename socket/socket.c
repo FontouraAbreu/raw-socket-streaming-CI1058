@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <pwd.h>
 #include "socket.h"
 #define DATA_MAX_LEN 63
 #define DEBUG
@@ -639,7 +641,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
         exit(1);
-        return TIMEOUT_ERROR;
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
@@ -727,12 +728,6 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
 
         if (packet->type == FIM)
         {
-            // if (chmod(file, 0644) != 0)
-            // {
-            //     perror("Erro ao ajustar permissões do arquivo");
-            //     exit(EXIT_FAILURE);
-            // }
-
             fclose(file);
             printf("File received successfully\n");
 
@@ -740,8 +735,60 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
 
+            // set the file rw-rw-rw- permissions
+            if (chmod(output_filename, 0666) != 0)
+            {
+                perror("Erro ao ajustar permissões do arquivo");
+                exit(EXIT_FAILURE);
+            }
+
+            // extract the logname user
+            FILE *fp = popen("logname", "r");
+            if (fp == NULL)
+            {
+                perror("Failed to run logname command");
+                exit(EXIT_FAILURE);
+            }
+
+
+            // extract the logname user using getlogin
+            char *logged_user = getlogin();
+            if (logged_user == NULL)
+            {
+                perror("Failed to get login name");
+                exit(EXIT_FAILURE);
+            }
+
+            // get the user ID and group ID of the logged user
+            struct passwd *pwd = getpwnam(logged_user);
+            if (pwd == NULL)
+            {
+                perror("Failed to get user information");
+                exit(EXIT_FAILURE);
+            }
+
+            uid_t uid = pwd->pw_uid;
+            gid_t gid = pwd->pw_gid;
+
+            // Save the original user ID
+            uid_t original_uid = getuid();
+
+            // change file ownership so that it can be run with vlc
+            if (chown(output_filename, uid, gid) != 0)
+            {
+                perror("Failed to change file ownership");
+                exit(EXIT_FAILURE);
+            }
+
+            // temporarily change the effective user ID to the extracted user's ID
+            // if (setuid(uid) != 0)
+            // {
+            //     perror("Failed to change user ID");
+            //     exit(EXIT_FAILURE);
+            // }
+
             char command[256];
-            snprintf(command, sizeof(command), "sudo vlc %s", output_filename);
+            snprintf(command, sizeof(command), "sudo -u %s vlc %s", logged_user, output_filename);
 
             int result = system(command);
             if (result == -1)
@@ -752,9 +799,9 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             {
                 printf("VLC player opened successfully\n");
             }
-
             break;
         }
+
     }
 
     if (attempt >= NUM_ATTEMPT)
@@ -762,7 +809,6 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
         exit(1);
-        return TIMEOUT_ERROR;
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 }
