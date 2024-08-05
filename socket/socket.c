@@ -334,7 +334,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -373,7 +373,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     while (!is_ack)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -492,7 +492,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
@@ -542,7 +542,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
             continue;
@@ -620,7 +620,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         // send a NACK response
         if (packet->starter_mark != STARTER_MARK) {
@@ -721,9 +721,12 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
+    // return the list of videos
+    return video_list;
+
 }
 
-void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename)
+int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename, int expected_size)
 {
     ssize_t size;
     int last_received_seq_num = -1;
@@ -750,7 +753,7 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
@@ -809,6 +812,17 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             fclose(file);
             printf("File received successfully\n");
 
+            // check if the size of the received file is the same as the expected size
+            struct stat st;
+            stat(output_filename, &st);
+            if (st.st_size != expected_size)
+            {
+                printf("Received file size does not match the expected size\n");
+                printf("\tTamanho do video: %ld\n", st.st_size);
+                printf("\tTamanho esperado: %ld\n", expected_size);
+                return -1;
+            }
+
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
             send_ack(sock, &packet_ack, &connection->address, &connection->state);
@@ -857,13 +871,6 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
                 perror("Failed to change file ownership");
                 exit(EXIT_FAILURE);
             }
-
-            // temporarily change the effective user ID to the extracted user's ID
-            // if (setuid(uid) != 0)
-            // {
-            //     perror("Failed to change user ID");
-            //     exit(EXIT_FAILURE);
-            // }
 
             char command[256];
             snprintf(command, sizeof(command), "sudo -u %s vlc %s", logged_user, output_filename);
