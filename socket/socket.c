@@ -273,6 +273,40 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
     return is_ack;
 }
 
+// checks for the substrings 0x81 and 0x88 in the packet data
+// if found, uses byte stuffing to escape them
+void code_vpn_strings(packet_t *packet) {
+    for (int i = 0; i < DATA_MAX_LEN; i++) {
+        // Check if the current byte in the packet data is 0x81 or 0x88
+        if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
+            // Shift the bytes after the current position to make space for the escaped bytes
+            for (int j = DATA_MAX_LEN - 1; j > i; j--) {
+            packet->data[j + 1] = packet->data[j];
+            }
+            // Replace the current byte with the escape character 0x7D
+            packet->data[i] = 0x7D;
+            // XOR the escaped byte with 0x20 and store it in the next position
+            packet->data[i + 1] = packet->data[i] ^ 0x20;
+        }
+    }
+}
+
+// checks for the escape character 0x7D in the packet data
+// if found, uses byte stuffing to unescape it
+void decode_vpn_strings(packet_t *packet) {
+    for (int i = 0; i < DATA_MAX_LEN; i++) {
+        // Check if the current byte in the packet data is the escape character 0x7D
+        if (packet->data[i] == 0x7D) {
+            // XOR the next byte with 0x20 to get the original byte
+            packet->data[i] = packet->data[i + 1] ^ 0x20;
+            // Shift the bytes after the current position to remove the escaped byte
+            for (int j = i + 1; j < DATA_MAX_LEN - 1; j++) {
+            packet->data[j] = packet->data[j + 1];
+            }
+        }
+    }
+}
+
 ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
 {
     packet_union_t pu;
@@ -286,6 +320,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
+        code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -324,6 +359,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     while (!is_ack)
     {
+        code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -442,6 +478,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
+        decode_vpn_strings(packet);
 
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
@@ -491,7 +528,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
         if (size == -1 || packet->starter_mark != STARTER_MARK)
             continue;
-
+        decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
             continue;
@@ -559,7 +596,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
     while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
-
         // recv returns -1 if a timeout has happened
         if (size == -1)
         {
@@ -569,6 +605,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
             continue;
         }
+
+        decode_vpn_strings(packet);
 
         // send a NACK response
         if (packet->starter_mark != STARTER_MARK) {
@@ -696,8 +734,9 @@ void receive_video_packet_sequence(int sock, packet_t *packet, connection_t *con
             usleep(temp_random * 1000);
             printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
             continue;
-            continue;
         }
+
+        decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
