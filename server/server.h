@@ -14,11 +14,13 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "../socket/socket.h"
 #include "../utils/utils.h"
 
 video_list_t *list_videos();
 
 void process_videos(connection_t connection, packet_t *packet, video_list_t *videos);
+long get_file_size(char *filename);
 
 #endif // __SERVER_H__

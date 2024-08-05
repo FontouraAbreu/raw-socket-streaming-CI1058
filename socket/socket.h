@@ -64,7 +64,7 @@ typedef struct {
 typedef struct {
     char *name; // file name
     char *path; // absolute path to video file
-    int size; // in bytes
+    long size; // in bytes
     int duration; // in seconds
 } video_t;
 
