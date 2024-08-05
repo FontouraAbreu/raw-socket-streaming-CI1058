@@ -276,35 +276,49 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 // checks for the substrings 0x81 and 0x88 in the packet data
 // if found, uses byte stuffing to escape them
 void code_vpn_strings(packet_t *packet) {
-    for (int i = 0; i < DATA_MAX_LEN; i++) {
-        // Check if the current byte in the packet data is 0x81 or 0x88
-        if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
-            // Shift the bytes after the current position to make space for the escaped bytes
-            for (int j = DATA_MAX_LEN - 1; j > i; j--) {
-            packet->data[j + 1] = packet->data[j];
-            }
-            // Replace the current byte with the escape character 0x7D
-            packet->data[i] = 0x7D;
-            // XOR the escaped byte with 0x20 and store it in the next position
-            packet->data[i + 1] = packet->data[i] ^ 0x20;
-        }
+    int i, j;
+    unsigned char *tempBuffer = malloc(DATA_MAX_LEN * 2); // Alocando espaço para o pior caso
+    if (!tempBuffer) {
+        fprintf(stderr, "Falha ao alocar memória para codificação\n");
+        return;
     }
+
+    for (i = 0, j = 0; i < DATA_MAX_LEN; i++) {
+        if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
+            printf("Found 0x81 or 0x88\n");
+            tempBuffer[j++] = 0x7D; // Insere byte de escape
+            exit(1);
+        }
+        tempBuffer[j++] = packet->data[i]; // Copia o byte original
+    }
+
+    memcpy(packet->data, tempBuffer, j);
+    packet->size = j;
+
+    free(tempBuffer);
 }
 
 // checks for the escape character 0x7D in the packet data
 // if found, uses byte stuffing to unescape it
 void decode_vpn_strings(packet_t *packet) {
-    for (int i = 0; i < DATA_MAX_LEN; i++) {
-        // Check if the current byte in the packet data is the escape character 0x7D
-        if (packet->data[i] == 0x7D) {
-            // XOR the next byte with 0x20 to get the original byte
-            packet->data[i] = packet->data[i + 1] ^ 0x20;
-            // Shift the bytes after the current position to remove the escaped byte
-            for (int j = i + 1; j < DATA_MAX_LEN - 1; j++) {
-            packet->data[j] = packet->data[j + 1];
-            }
-        }
+    int i, j;
+    unsigned char *tempBuffer = malloc(DATA_MAX_LEN); // Assume que o pacote não encolhe
+    if (!tempBuffer) {
+        fprintf(stderr, "Falha ao alocar memória para decodificação\n");
+        return;
     }
+
+    for (i = 0, j = 0; i < packet->size; i++) {
+        if (packet->data[i] == 0x7D && i + 1 < packet->size) {
+            i++; // Pula o byte de escape
+        }
+        tempBuffer[j++] = packet->data[i]; // Copia o byte especial sem modificação
+    }
+
+    memcpy(packet->data, tempBuffer, j);
+    packet->size = j;
+
+    free(tempBuffer);
 }
 
 ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
