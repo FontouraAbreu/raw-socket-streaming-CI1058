@@ -101,13 +101,6 @@ int main(int argc, char **argv)
     }
 }
 
-/* connects to the server */
-
-// list_videos();
-
-// return EXIT_SUCCESS;
-// }
-
 // pega duração do video
 int get_video_duration(char *video_location, char *video_name)
 {
@@ -171,7 +164,10 @@ video_list_t *list_videos()
 
                 //pega a duração do video
                 video.duration = get_video_duration(VIDEO_LOCATION, entry->d_name);
-                video.path = malloc(strlen(VIDEO_LOCATION) + strlen(entry->d_name) + 1); // Alocando memória para o caminho completo
+                // extracts the video path from entry
+                video.path = get_video_path(entry->d_name);
+
+                video.size = get_file_size(video.path);
                 if (!video.path)
                 {
                     perror("Erro ao alocar memória para video->path");
@@ -218,6 +214,15 @@ video_list_t *list_videos()
     }
 
     return video_list;
+}
+
+long get_file_size(char *filename) {
+    struct stat file_status;
+    if (stat(filename, &file_status) < 0) {
+        return -1;
+    }
+
+    return file_status.st_size;
 }
 
 // wait for ack
