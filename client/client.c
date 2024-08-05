@@ -117,22 +117,28 @@ int main(int argc, char **argv)
             if (packet.type == INICIO_SEQ)
             {
                 printf("Recebendo dados do video...\n");
-                while(receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size) < 0) {
-                    printf("Erro ao receber video:\n");
-                    printf("Reinicio da transferencia\n");
-                    sleep(5);
-                    request_download(chosen_video.name);
-                    wait_for_init_sequence(connection.socket, &packet, &connection);
-
-                    if (packet.type != ACK)
-                        print_packet(&packet);
-
-                    if (packet.type == INICIO_SEQ)
-                    {
-                        printf("Recebendo dados do video...\n");
-                    }
-                }
+                receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
             }
+
+
+            // int downloaded_succesfully = 0;
+            // while ( !downloaded_succesfully ) {
+            //     request_download(chosen_video.name);
+
+            //     wait_for_init_sequence(connection.socket, &packet, &connection);
+
+            //     if (packet.type != ACK)
+            //         print_packet(&packet);
+
+            //     if (packet.type == INICIO_SEQ)
+            //     {
+            //         printf("Recebendo dados do video...\n");
+            //         int has_received = receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
+            //         if (has_received) {
+            //             downloaded_succesfully = 1;
+            //         }
+            //     }
+            // }
 
             break;
         case QUIT:
