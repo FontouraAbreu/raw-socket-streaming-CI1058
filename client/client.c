@@ -50,7 +50,13 @@ int main(int argc, char **argv)
             // Process the received packet
             if (packet.type == ERRO)
             {
-                printf("Erro ao listar videos\n");
+                printf("Erro ao listar videos, tente novamente!\n");
+                break;
+            }
+
+            if (packet.type == ERRO_SEM_VIDEOS)
+            {
+                printf("Nenhum video disponivel\n");
                 break;
             }
 
@@ -180,14 +186,20 @@ video_t *request_videos()
     packet.crc = calculate_crc8((unsigned char *)&packet, sizeof(packet_t) - 1);
     video_t *videos = NULL;
 
-    send_packet(connection.socket, &packet, &connection.address, &connection.state);
+    int status = send_packet(connection.socket, &packet, &connection.address, &connection.state);
+
+    if (status == ERRO_SEM_VIDEOS)
+    {
+        printf("Nenhum video disponivel\n");
+        exit(1);
+        return videos;
+    }
 
     // wait for the server to send the list of videos, with ACK
     // receive_packet(connection.socket, &packet, &connection);
-
     if (packet.type == ACK)
     {
-        printf("ACK received\n");
+        printf("Videos request sent\n");
     }
 
     return videos;
