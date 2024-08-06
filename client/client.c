@@ -68,7 +68,8 @@ int main(int argc, char **argv)
                 printf("Recebendo videos...\n");
                 receive_packet_sequence(connection.socket, &packet, &connection, video_list);
             }
-            else
+
+            if (packet.type == FIM)
             {
                 printf("Videos disponiveis:\n");
                 for (int i = 0; i < video_list->num_videos; i++)
@@ -112,6 +113,7 @@ int main(int argc, char **argv)
 
             if (packet.type != ACK)
                 print_packet(&packet);
+
 
             if (packet.type == INICIO_SEQ)
             {
