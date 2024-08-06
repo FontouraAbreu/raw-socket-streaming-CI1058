@@ -288,8 +288,10 @@ void code_vpn_strings(packet_t *packet) {
     for (i = 0, j = 0; i < DATA_MAX_LEN; i++) {
         if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
             printf("Found 0x81 or 0x88\n");
+            printf("found: %x\n", packet->data[i]);
             tempBuffer[j++] = ESCAPE_CHAR; // Insere byte de escape
             // exit(1);
+            // sleep(4);
         }
         tempBuffer[j++] = packet->data[i]; // Copia o byte original
     }
@@ -488,13 +490,20 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
     int error = -1;
 
-    for (;;)
+
+    while (1)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
-        if (size == -1 || packet->starter_mark != STARTER_MARK)
+        if (size == -1)
+        {
             continue;
+        }
+
         decode_vpn_strings(packet);
+
+        if (packet->starter_mark != STARTER_MARK)
+            continue;
 
         printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
@@ -516,8 +525,10 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         // error = check_crc(packet);
         // if (error)
         // {
+        //     packet_t packet_nack;
+        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     break;
+        //     continue;
         // }
 
         // envia um ACK
@@ -526,8 +537,9 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         // if (check_message_parity(packet))
         //     break;
     };
-    packet_t packet_ack;
 
+
+    packet_t packet_ack;
     build_packet(&packet_ack, 0, ACK, NULL, 0);
     send_ack(sock, &packet_ack, &connection->address, &connection->state);
 }
@@ -537,15 +549,29 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     ssize_t size;
 
     int error = -1;
+    int attempt = 0;
 
-    for (;;)
+
+    while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
-        if (size == -1 || packet->starter_mark != STARTER_MARK)
+        if (size == -1)
+        {
+            attempt++;
+            int temp_random = rand() % attempt * attempt;
+            usleep(temp_random * 1000);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
             continue;
+        }
+        attempt = 0;
+
         decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
+
+        if (packet->starter_mark != STARTER_MARK)
+            continue;
+
         if (packet->type == ACK || packet->type == NACK)
             continue;
 
@@ -561,11 +587,13 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         printf("[ETHBKP][RCVM] Message received: ");
 #endif
 
-        error = check_crc(packet);
+        // error = check_crc(packet);
         // if (error)
         // {
+        //     packet_t packet_nack;
+        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     break;
+        //     continue;
         // }
 
         // recebe um pacote de inicio de sequencia
@@ -574,8 +602,17 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             break;
         }
     };
-    packet_t packet_ack;
 
+
+    if (attempt >= NUM_ATTEMPT)
+    {
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+        printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
+        exit(1);
+        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+    }
+
+    packet_t packet_ack;
     build_packet(&packet_ack, 0, ACK, NULL, 0);
     ssize_t size_ack = send_ack(sock, &packet_ack, &connection->address, &connection->state);
 
@@ -625,6 +662,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
 
         decode_vpn_strings(packet);
 
+        print_packet(packet);
+
         // send a NACK response
         if (packet->starter_mark != STARTER_MARK) {
             continue;
@@ -644,8 +683,10 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // if (error)
         // {
         //     printf("Erro no CRC\n");
+        //     packet_t packet_nack;
+        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     break;
+        //     continue;
         // }
 
         // Verifica se é um descritor (nome do vídeo)
@@ -777,8 +818,10 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
         // int error = check_crc(packet);
         // if (error)
         // {
+        //     packet_t packet_nack;
+        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     break;
+        //     continue;
         // }
 
         int data_size;
@@ -824,10 +867,10 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 printf("Received file size does not match the expected size\n");
                 printf("\tTamanho do video: %ld\n", st.st_size);
                 printf("\tTamanho esperado: %ld\n", expected_size);
-                // packet_t packet_ack;
-                // build_packet(&packet_ack, 0, ACK, NULL, 0);
-                // send_ack(sock, &packet_ack, &connection->address, &connection->state);
-                // return -1;
+                packet_t packet_ack;
+                build_packet(&packet_ack, 0, ACK, NULL, 0);
+                send_ack(sock, &packet_ack, &connection->address, &connection->state);
+                return -1;
             }
             else {
                 printf("Received file size matches the expected size\n");
