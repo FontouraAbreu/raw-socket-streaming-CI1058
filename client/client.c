@@ -158,7 +158,6 @@ int main(int argc, char **argv)
         op = show_menu();
     }
     op = show_menu();
-    packet_t packet;
 
     // receive_packet(sockfd, &packet);
     // close(sockfd);

@@ -330,8 +330,6 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     packet_union_t pu;
     memcpy(pu.raw, packet, sizeof(packet_t));
 
-    connection_state = *connection_state * -1;
-
     ssize_t size;
     int is_ack = 0;
     int error = -1;
@@ -368,8 +366,6 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 {
     packet_union_t pu;
     memcpy(pu.raw, packet, sizeof(packet_t));
-
-    connection_state = *connection_state * -1;
 
     ssize_t size;
     int is_ack = 0;
@@ -412,8 +408,6 @@ ssize_t send_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int
     packet_union_t pu;
     memcpy(pu.raw, packet, sizeof(packet_t));
 
-    connection_state = *connection_state * -1;
-
     ssize_t size;
 
     printf("Sending packet\n");
@@ -433,8 +427,6 @@ ssize_t send_nack(int _socket, packet_t *packet, struct sockaddr_ll *address, in
 {
     packet_union_t pu;
     memcpy(pu.raw, packet, sizeof(packet_t));
-
-    connection_state = *connection_state * -1;
 
     ssize_t size;
 
@@ -643,7 +635,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
     ssize_t size;
     int attempt = 0;
     ssize_t size_tam;
-    int last_received_seq_num = 0;
     video_t *current_video = init_video_t();
 
     while (1 && attempt < NUM_ATTEMPT)
@@ -696,7 +687,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             // Supondo que o nome do vídeo esteja nos dados do pacote
             current_video->name = malloc(packet->size + 1); // +1 para o terminador nulo
             strcpy(current_video->name, packet->data);
-            last_received_seq_num = packet->seq_num;
 
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
@@ -710,7 +700,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             print_packet(packet);
             // Supondo que o tamanho esteja nos dados do pacote como um inteiro
             current_video->size = *((int *)packet->data); // Ajuste conforme necessário
-            last_received_seq_num = packet->seq_num;
 
             packet_t packet_ack;
             build_packet(&packet_ack, 0, ACK, NULL, 0);
@@ -726,12 +715,11 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
             // Supondo que a duração esteja nos dados do pacote como um inteiro
             current_video->duration = *((int *)packet->data); // Ajuste conforme necessário
-            last_received_seq_num = packet->seq_num;
 
 
             printf("Adicionando video na lista\n");
             printf("Nome: %s\n", current_video->name);
-            printf("Tamanho: %d\n", current_video->size);
+            printf("Tamanho: %ld\n", current_video->size);
             printf("Duração: %d\n", current_video->duration);
             // add_video_to_list(video_list, &current_video);
 
@@ -866,7 +854,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             {
                 printf("Received file size does not match the expected size\n");
                 printf("\tTamanho do video: %ld\n", st.st_size);
-                printf("\tTamanho esperado: %ld\n", expected_size);
+                printf("\tTamanho esperado: %d\n", expected_size);
                 packet_t packet_ack;
                 build_packet(&packet_ack, 0, ACK, NULL, 0);
                 send_ack(sock, &packet_ack, &connection->address, &connection->state);
@@ -916,7 +904,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             gid_t gid = pwd->pw_gid;
 
             // Save the original user ID
-            uid_t original_uid = getuid();
+            // uid_t original_uid = getuid();
 
             // change file ownership so that it can be run with vlc
             if (chown(output_filename, uid, gid) != 0)
@@ -1020,7 +1008,6 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
 
     ssize_t data_size;
     int current_data_video_index = 0;
-    unsigned char aux, aux2;
 
     while (!feof(file))
     {
