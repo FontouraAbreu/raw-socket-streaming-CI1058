@@ -83,7 +83,8 @@ typedef struct {
 #define TAMANHO 20 // bx10010
 #define DURACAO 21 // bx10011
 #define DADOS 18 // bx10010
-#define INICIO_SEQ 29 //
+#define ERRO_SEM_VIDEOS 28 // bx11100
+#define INICIO_SEQ 29 // bx11101
 #define FIM 30 // bx11110
 #define ERRO 31 // bx11111
 
@@ -96,6 +97,7 @@ video_t *init_video_t();
 
 void build_packet(packet_t *pkt, unsigned char seq_num, unsigned char type, unsigned char *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
+ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 void receive_packet(int sock, packet_t *packet, connection_t *connection);
 void receive_packet_sequence(int sock, packet_t *packet, connection_t *connection, video_list_t *video_list);
 void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection);

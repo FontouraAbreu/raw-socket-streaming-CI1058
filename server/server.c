@@ -37,27 +37,24 @@ int main(int argc, char **argv)
     while (1)
     {
         receive_packet(connection.socket, &packet, &connection);
-        printf("Entrando para funcoes\n");
         switch (packet.type)
         {
         case LISTAR:
-            build_packet(&packet, 0, INICIO_SEQ, NULL, 0);
-            send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
 
             printf("Listando videos...\n");
             video_list_t *videos = list_videos();
 
             if (videos->num_videos == 0)
             {
-#ifdef DEBUG
                 printf("Erro ao listar videos, enviando pacote de erro\n");
-#endif
-                build_packet(&packet, 0, ERRO, NULL, 0);
-                send_packet(connection.socket, &packet, &connection.address, &connection.state);
+                build_packet(&packet, 0, ERRO_SEM_VIDEOS, NULL, 0);
+                send_packet_no_ack(connection.socket, &packet, &connection.address, &connection.state);
                 break;
             }
             else
             {
+                build_packet(&packet, 0, INICIO_SEQ, NULL, 0);
+                send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
                 wait_for_ack(connection.socket, &packet, &connection.address, &connection.state);
 
                 // quando receber o ack, chama a função process_videos
@@ -89,8 +86,8 @@ int main(int argc, char **argv)
             }
 
             break;
-        default:
-            receive_packet(connection.socket, &packet, &connection);
+        // default:
+        //     receive_packet(connection.socket, &packet, &connection);
         }
 
     }
@@ -199,15 +196,6 @@ video_list_t *list_videos()
         free(video_list);
         return NULL;
     }
-
-    if (video_list->num_videos == 0)
-    {
-        printf("Nenhum vídeo encontrado, verifique o diretório de vídeos\n");
-        free(video_list->videos);
-        free(video_list);
-        return NULL;
-    }
-
     return video_list;
 }
 

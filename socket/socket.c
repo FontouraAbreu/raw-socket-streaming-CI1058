@@ -218,7 +218,7 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
     unsigned char buffer[sizeof(packet_union_t)] = {0};
     int attempt = 0;
 
-    while (!is_ack && attempt < NUM_ATTEMPT)
+    while (is_ack <= 0 && attempt < NUM_ATTEMPT)
     {
         // size = recv(_socket, buffer, sizeof(buffer), 0);
         size = recv(_socket, packet, sizeof(packet_t), 0);
@@ -246,6 +246,13 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
             // memcpy(error, packet->data, sizeof(int));
             is_ack = 2;
             break;
+        }
+
+        if (packet->type == ERRO_SEM_VIDEOS)
+        {
+            printf("Erro ao receber pacote: não há videos\n");
+            exit(1);
+            return ERRO_SEM_VIDEOS;
         }
 
         // if packet type is not ACK
@@ -333,6 +340,22 @@ void decode_vpn_strings(packet_t *packet)
     free(tempBuffer);
 }
 
+/*
+* Função que envia um pacote sem esperar por um ACK
+*/
+ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
+{
+    packet_union_t pu;
+    memcpy(pu.raw, packet, sizeof(packet_t));
+
+    ssize_t size;
+    int is_ack = 0;
+    int error = -1;
+
+    code_vpn_strings(packet);
+    size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
+}
+
 ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
 {
     packet_union_t pu;
@@ -342,7 +365,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     int is_ack = 0;
     int error = -1;
 
-    while (!is_ack && is_ack != TIMEOUT_ERROR)
+    while (is_ack <= 0 && is_ack != TIMEOUT_ERROR)
     {
         // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
@@ -365,6 +388,11 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
     if (is_ack == TIMEOUT_ERROR)
     {
         return TIMEOUT_ERROR;
+    }
+
+    if (is_ack == ERRO_SEM_VIDEOS)
+    {
+        return ERRO_SEM_VIDEOS;
     }
 
     return size;
@@ -570,6 +598,13 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         if (packet->starter_mark != STARTER_MARK)
             continue;
 
+        // if it is an error packet
+        // break and let the client handle it
+        if (packet->type == ERRO_SEM_VIDEOS)
+        {
+            break;
+        }
+
         if (packet->type == ACK || packet->type == NACK)
             continue;
 
@@ -585,7 +620,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         printf("[ETHBKP][RCVM] Message received: ");
 #endif
 
-        // ESTA CORRETO, SE O SERVIDOR RECEBER
+        // ESTA CORRETO! SE O SERVIDOR RECEBER
         // UM NACK ELE REENVIA O PACOTE
         error = check_crc(packet);
         if (error)
