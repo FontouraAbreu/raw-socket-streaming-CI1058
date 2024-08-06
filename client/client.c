@@ -24,7 +24,6 @@ void init_client(char *interface)
     connection.address.sll_family = AF_PACKET;
     connection.address.sll_protocol = htons(ETH_P_ALL);
     connection.address.sll_ifindex = if_nametoindex(interface);
-    printf("ifindex: %d\n", connection.address.sll_ifindex);
     connection.address.sll_halen = ETH_ALEN;
     memcpy(connection.address.sll_addr, dest_mac, ETH_ALEN);
 }
@@ -122,7 +121,7 @@ int main(int argc, char **argv)
 
 
             // int downloaded_succesfully = 0;
-            // while ( !downloaded_succesfully ) {
+            // while (!downloaded_succesfully) {
             //     request_download(chosen_video.name);
 
             //     wait_for_init_sequence(connection.socket, &packet, &connection);
@@ -134,8 +133,12 @@ int main(int argc, char **argv)
             //     {
             //         printf("Recebendo dados do video...\n");
             //         int has_received = receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
-            //         if (has_received) {
+            //         if (has_received == 1) {
+            //             printf("Video baixado com sucesso\n");
             //             downloaded_succesfully = 1;
+            //         }
+            //         else {
+            //             printf("Erro ao baixar video, tente novamente!!\n");
             //         }
             //     }
             // }
