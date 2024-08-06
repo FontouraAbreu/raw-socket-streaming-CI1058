@@ -83,6 +83,7 @@ typedef struct {
 #define TAMANHO 20 // bx10010
 #define DURACAO 21 // bx10011
 #define DADOS 18 // bx10010
+#define ERRO_NAO_ENCONTRADO 27 // bx11011
 #define ERRO_SEM_VIDEOS 28 // bx11100
 #define INICIO_SEQ 29 // bx11101
 #define FIM 30 // bx11110

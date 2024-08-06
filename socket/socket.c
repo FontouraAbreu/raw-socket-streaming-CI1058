@@ -830,6 +830,12 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             continue;
         }
 
+        if (packet->type == ERRO_NAO_ENCONTRADO)
+        {
+            printf("Video nao encontrado!! Liste os videos e tente novamente!\n");
+            break;
+        }
+
         if (packet->type == ACK || packet->type == NACK)
         {
             continue;
