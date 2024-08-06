@@ -203,7 +203,6 @@ void print_packet(packet_t *pkt)
     printf("  CRC: %x\n", pkt->crc);
 }
 
-
 int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 {
     if (!packet)
@@ -283,16 +282,20 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 
 // checks for the substrings 0x81 and 0x88 in the packet data
 // if found, uses byte stuffing to escape them
-void code_vpn_strings(packet_t *packet) {
+void code_vpn_strings(packet_t *packet)
+{
     int i, j;
     unsigned char *tempBuffer = malloc(DATA_MAX_LEN * 2); // Alocando espaço para o pior caso
-    if (!tempBuffer) {
+    if (!tempBuffer)
+    {
         fprintf(stderr, "Falha ao alocar memória para codificação\n");
         return;
     }
 
-    for (i = 0, j = 0; i < DATA_MAX_LEN; i++) {
-        if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
+    for (i = 0, j = 0; i < DATA_MAX_LEN; i++)
+    {
+        if (packet->data[i] == 0x81 || packet->data[i] == 0x88)
+        {
             printf("Found 0x81 or 0x88\n");
             printf("found: %x\n", packet->data[i]);
             tempBuffer[j++] = ESCAPE_CHAR; // Insere byte de escape
@@ -310,16 +313,20 @@ void code_vpn_strings(packet_t *packet) {
 
 // checks for the escape character ESCAPE_CHAR in the packet data
 // if found, uses byte stuffing to unescape it
-void decode_vpn_strings(packet_t *packet) {
+void decode_vpn_strings(packet_t *packet)
+{
     int i, j;
     unsigned char *tempBuffer = malloc(DATA_MAX_LEN); // Assume que o pacote não encolhe
-    if (!tempBuffer) {
+    if (!tempBuffer)
+    {
         fprintf(stderr, "Falha ao alocar memória para decodificação\n");
         return;
     }
 
-    for (i = 0, j = 0; i < packet->size; i++) {
-        if (packet->data[i] == ESCAPE_CHAR && i + 1 < packet->size) {
+    for (i = 0, j = 0; i < packet->size; i++)
+    {
+        if (packet->data[i] == ESCAPE_CHAR && i + 1 < packet->size)
+        {
             i++; // Pula o byte de escape
         }
         tempBuffer[j++] = packet->data[i]; // Copia o byte especial sem modificação
@@ -332,8 +339,8 @@ void decode_vpn_strings(packet_t *packet) {
 }
 
 /*
-* Função que envia um pacote sem esperar por um ACK
-*/
+ * Função que envia um pacote sem esperar por um ACK
+ */
 ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
 {
     packet_union_t pu;
@@ -510,7 +517,6 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
     int error = -1;
 
-
     while (1)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
@@ -558,7 +564,6 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         //     break;
     };
 
-
     packet_t packet_ack;
     build_packet(&packet_ack, 0, ACK, NULL, 0);
     send_ack(sock, &packet_ack, &connection->address, &connection->state);
@@ -571,7 +576,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     int error = -1;
     int attempt = 0;
 
-
     while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
@@ -581,7 +585,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
@@ -631,7 +635,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             break;
         }
     };
-
 
     if (attempt >= NUM_ATTEMPT)
     {
@@ -683,7 +686,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
@@ -693,7 +696,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         print_packet(packet);
 
         // send a NACK response
-        if (packet->starter_mark != STARTER_MARK) {
+        if (packet->starter_mark != STARTER_MARK)
+        {
             continue;
         }
 
@@ -753,14 +757,14 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             // Supondo que a duração esteja nos dados do pacote como um inteiro
             current_video->duration = *((int *)packet->data); // Ajuste conforme necessário
 
-
             printf("Adicionando video na lista\n");
             printf("Nome: %s\n", current_video->name);
             printf("Tamanho: %ld\n", current_video->size);
             printf("Duração: %d\n", current_video->duration);
             // add_video_to_list(video_list, &current_video);
 
-            if (video_list != NULL) {
+            if (video_list != NULL)
+            {
                 printf("Num videos: %d\n", video_list->num_videos);
                 video_list->videos[video_list->num_videos] = *current_video;
                 video_list->num_videos++;
@@ -792,7 +796,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
 
     // return the list of videos
     return video_list;
-
 }
 
 int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename, int expected_size)
@@ -818,7 +821,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
@@ -903,13 +906,13 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 send_ack(sock, &packet_ack, &connection->address, &connection->state);
                 return -1;
             }
-            else {
+            else
+            {
                 printf("Received file size matches the expected size\n");
                 packet_t packet_ack;
                 build_packet(&packet_ack, 0, ACK, NULL, 0);
                 send_ack(sock, &packet_ack, &connection->address, &connection->state);
             }
-
 
             // set the file rw-rw-rw- permissions
             if (chmod(output_filename, 0666) != 0)
@@ -925,7 +928,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 perror("Failed to run logname command");
                 exit(EXIT_FAILURE);
             }
-
 
             // extract the logname user using getlogin
             char *logged_user = getlogin();
@@ -970,7 +972,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             }
             break;
         }
-
     }
 
     if (attempt >= NUM_ATTEMPT)
@@ -1117,19 +1118,21 @@ char *get_video_path(char *video_name)
         if (strcmp(dir->d_name, video_name) == 0)
         {
             // Construir o caminho completo do vídeo
-            video_path = malloc(strlen(VIDEO_LOCATION) + strlen(video_name) + 1);
+            size_t video_path_len = strlen(VIDEO_LOCATION) + strlen(video_name) + 1;
+            video_path = malloc(video_path_len + 1); // +1 para o terminador nulo
             if (video_path)
             {
-                strcpy(video_path, VIDEO_LOCATION);
-                strcat(video_path, video_name);
+                snprintf(video_path, video_path_len + 1, "%s%s", VIDEO_LOCATION, video_name);
+                printf("video_path encontrado %s\n", video_path);
             }
             break;
         }
-        printf("%s\n", dir->d_name);
     }
 
-    printf("video_path %s\n", VIDEO_LOCATION);
-    printf("video_path %s\n", video_path);
+    if (video_path == NULL)
+    {
+        printf("Vídeo não encontrado\n");
+    }
 
     closedir(d);
     return video_path;
