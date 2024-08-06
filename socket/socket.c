@@ -18,6 +18,7 @@
 #define TIMEOUT_S 2
 #define TIMEOUT_ERROR -1
 #define ESCAPE_CHAR 0xFF
+#define MAX_SEQ_NUM 32
 
 packet_t last_packet = {
     .starter_mark = 0,
@@ -203,7 +204,6 @@ void print_packet(packet_t *pkt)
     printf("  CRC: %x\n", pkt->crc);
 }
 
-
 int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 {
     if (!packet)
@@ -277,16 +277,20 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 
 // checks for the substrings 0x81 and 0x88 in the packet data
 // if found, uses byte stuffing to escape them
-void code_vpn_strings(packet_t *packet) {
+void code_vpn_strings(packet_t *packet)
+{
     int i, j;
     unsigned char *tempBuffer = malloc(DATA_MAX_LEN * 2); // Alocando espaço para o pior caso
-    if (!tempBuffer) {
+    if (!tempBuffer)
+    {
         fprintf(stderr, "Falha ao alocar memória para codificação\n");
         return;
     }
 
-    for (i = 0, j = 0; i < DATA_MAX_LEN; i++) {
-        if (packet->data[i] == 0x81 || packet->data[i] == 0x88) {
+    for (i = 0, j = 0; i < DATA_MAX_LEN; i++)
+    {
+        if (packet->data[i] == 0x81 || packet->data[i] == 0x88)
+        {
             printf("Found 0x81 or 0x88\n");
             printf("found: %x\n", packet->data[i]);
             tempBuffer[j++] = ESCAPE_CHAR; // Insere byte de escape
@@ -304,16 +308,20 @@ void code_vpn_strings(packet_t *packet) {
 
 // checks for the escape character ESCAPE_CHAR in the packet data
 // if found, uses byte stuffing to unescape it
-void decode_vpn_strings(packet_t *packet) {
+void decode_vpn_strings(packet_t *packet)
+{
     int i, j;
     unsigned char *tempBuffer = malloc(DATA_MAX_LEN); // Assume que o pacote não encolhe
-    if (!tempBuffer) {
+    if (!tempBuffer)
+    {
         fprintf(stderr, "Falha ao alocar memória para decodificação\n");
         return;
     }
 
-    for (i = 0, j = 0; i < packet->size; i++) {
-        if (packet->data[i] == ESCAPE_CHAR && i + 1 < packet->size) {
+    for (i = 0, j = 0; i < packet->size; i++)
+    {
+        if (packet->data[i] == ESCAPE_CHAR && i + 1 < packet->size)
+        {
             i++; // Pula o byte de escape
         }
         tempBuffer[j++] = packet->data[i]; // Copia o byte especial sem modificação
@@ -336,7 +344,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (!is_ack && is_ack != TIMEOUT_ERROR)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -373,7 +381,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     while (!is_ack)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -482,7 +490,6 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
 
     int error = -1;
 
-
     while (1)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
@@ -492,7 +499,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
             continue;
@@ -530,7 +537,6 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         //     break;
     };
 
-
     packet_t packet_ack;
     build_packet(&packet_ack, 0, ACK, NULL, 0);
     send_ack(sock, &packet_ack, &connection->address, &connection->state);
@@ -543,7 +549,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
     int error = -1;
     int attempt = 0;
 
-
     while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
@@ -553,12 +558,12 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
         printf("type %d\n", packet->type);
 
         if (packet->starter_mark != STARTER_MARK)
@@ -594,7 +599,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
             break;
         }
     };
-
 
     if (attempt >= NUM_ATTEMPT)
     {
@@ -646,17 +650,18 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         print_packet(packet);
 
         // send a NACK response
-        if (packet->starter_mark != STARTER_MARK) {
+        if (packet->starter_mark != STARTER_MARK)
+        {
             continue;
         }
 
@@ -716,14 +721,14 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             // Supondo que a duração esteja nos dados do pacote como um inteiro
             current_video->duration = *((int *)packet->data); // Ajuste conforme necessário
 
-
             printf("Adicionando video na lista\n");
             printf("Nome: %s\n", current_video->name);
             printf("Tamanho: %ld\n", current_video->size);
             printf("Duração: %d\n", current_video->duration);
             // add_video_to_list(video_list, &current_video);
 
-            if (video_list != NULL) {
+            if (video_list != NULL)
+            {
                 printf("Num videos: %d\n", video_list->num_videos);
                 video_list->videos[video_list->num_videos] = *current_video;
                 video_list->num_videos++;
@@ -755,7 +760,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
 
     // return the list of videos
     return video_list;
-
 }
 
 int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *connection, const char *output_filename, int expected_size)
@@ -769,8 +773,13 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
     if (!file)
     {
         fprintf(stderr, "Error opening file: %s\n", strerror(errno));
-        return;
+        return -1;
     }
+
+    int base = 0;
+    int window_size = 5;
+    packet_t *window[window_size];
+    memset(window, 0, sizeof(window));
 
     while (1 && attempt < NUM_ATTEMPT)
     {
@@ -781,12 +790,10 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             attempt++;
             int temp_random = rand() % attempt * attempt;
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n",attempt,NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
-
-        decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
@@ -798,48 +805,67 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             continue;
         }
 
-        if (packet->seq_num == last_received_seq_num && (packet->type != FIM))
-        {
-            continue;
-        }
-
-        // int error = check_crc(packet);
-        // if (error)
-        // {
-        //     packet_t packet_nack;
-        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
-        //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     continue;
-        // }
-
-        int data_size;
-        unsigned char *data = malloc(DATA_MAX_LEN);
-        test_alloc(data, "receive_file data buffer");
-
         if (packet->type == DADOS)
         {
-            printf("[ETHBKP][RCVM] Message received: ");
-            print_packet(packet);
-            data_size = packet->size;
-            unsigned char *data = malloc(data_size);
-            memcpy(data, packet->data, data_size);
+            int seq_num = packet->seq_num;
+            int window_end = (base + window_size) % MAX_SEQ_NUM;
 
-            size_t written = fwrite(
-                packet->data,
-                sizeof(*packet->data),
-                packet->size,
-                file);
-            if (written != packet->size)
+            if ((base <= window_end && seq_num >= base && seq_num < window_end) ||
+                (base > window_end && (seq_num >= base || seq_num < window_end)))
             {
-                fprintf(stderr, "Error writing to file\n");
-                fclose(file);
-                break;
-            }
-            last_received_seq_num = packet->seq_num;
+                if (window[seq_num % window_size] != NULL)
+                {
+                    free(window[seq_num % window_size]);
+                }
 
-            packet_t packet_ack;
-            build_packet(&packet_ack, 0, ACK, NULL, 0);
-            send_ack(sock, &packet_ack, &connection->address, &connection->state);
+                window[seq_num % window_size] = malloc(sizeof(packet_t));
+
+                if (window[seq_num % window_size] == NULL)
+                {
+                    fprintf(stderr, "Error allocating memory\n");
+                    fclose(file);
+                    return -1;
+                }
+
+                memcpy(window[seq_num % window_size], packet, sizeof(packet_t));
+
+                while (window[base % window_size])
+                {
+                    packet_t *pkt = window[base % window_size];
+                    size_t written = fwrite(pkt->data, sizeof(*pkt->data), pkt->size, file);
+
+                    if (written != pkt->size)
+                    {
+                        fprintf(stderr, "Error writing to file\n");
+                        fclose(file);
+                        return -1;
+                    }
+
+                    free(window[base % window_size]);
+                    window[base % window_size] = NULL;
+
+                    base = (base + 1) % MAX_SEQ_NUM; // Wrap around
+                }
+
+                packet_t ack_packet;
+                build_packet(&ack_packet, (base - 1 + MAX_SEQ_NUM) % MAX_SEQ_NUM, ACK, NULL, 0); // Handle negative base
+                send_ack(sock, &ack_packet, &connection->address, &connection->state);
+            }
+            else if ((seq_num < base && base <= MAX_SEQ_NUM) ||
+                     (base > MAX_SEQ_NUM && seq_num < base))
+            {
+                // Pacote já confirmado, reenviar ACK
+                packet_t ack_packet;
+                build_packet(&ack_packet, (base - 1 + MAX_SEQ_NUM) % MAX_SEQ_NUM, ACK, NULL, 0);
+                send_ack(sock, &ack_packet, &connection->address, &connection->state);
+            }
+            else
+            {
+                // Pacote fora da janela, enviar NACK
+                packet_t nack_packet;
+                build_packet(&nack_packet, base, NACK, NULL, 0);
+                send_nack(sock, &nack_packet, &connection->address, &connection->state);
+            }
         }
 
         if (packet->type == FIM)
@@ -847,7 +873,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             fclose(file);
             printf("File received successfully\n");
 
-            // check if the size of the received file is the same as the expected size
+            // Check if the size of the received file is the same as the expected size
             struct stat st;
             stat(output_filename, &st);
             if (st.st_size != expected_size)
@@ -855,67 +881,21 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 printf("Received file size does not match the expected size\n");
                 printf("\tTamanho do video: %ld\n", st.st_size);
                 printf("\tTamanho esperado: %d\n", expected_size);
-                packet_t packet_ack;
-                build_packet(&packet_ack, 0, ACK, NULL, 0);
-                send_ack(sock, &packet_ack, &connection->address, &connection->state);
                 return -1;
             }
-            else {
-                printf("Received file size matches the expected size\n");
-                packet_t packet_ack;
-                build_packet(&packet_ack, 0, ACK, NULL, 0);
-                send_ack(sock, &packet_ack, &connection->address, &connection->state);
-            }
 
-
-            // set the file rw-rw-rw- permissions
-            if (chmod(output_filename, 0666) != 0)
-            {
-                perror("Erro ao ajustar permissões do arquivo");
-                exit(EXIT_FAILURE);
-            }
-
-            // extract the logname user
-            FILE *fp = popen("logname", "r");
-            if (fp == NULL)
-            {
-                perror("Failed to run logname command");
-                exit(EXIT_FAILURE);
-            }
-
-
-            // extract the logname user using getlogin
+            printf("Received file size matches the expected size\n");
+            // Set the file permissions and ownership as required
+            chmod(output_filename, 0666);
             char *logged_user = getlogin();
-            if (logged_user == NULL)
-            {
-                perror("Failed to get login name");
-                exit(EXIT_FAILURE);
-            }
-
-            // get the user ID and group ID of the logged user
             struct passwd *pwd = getpwnam(logged_user);
-            if (pwd == NULL)
+            if (pwd)
             {
-                perror("Failed to get user information");
-                exit(EXIT_FAILURE);
-            }
-
-            uid_t uid = pwd->pw_uid;
-            gid_t gid = pwd->pw_gid;
-
-            // Save the original user ID
-            // uid_t original_uid = getuid();
-
-            // change file ownership so that it can be run with vlc
-            if (chown(output_filename, uid, gid) != 0)
-            {
-                perror("Failed to change file ownership");
-                exit(EXIT_FAILURE);
+                chown(output_filename, pwd->pw_uid, pwd->pw_gid);
             }
 
             char command[256];
             snprintf(command, sizeof(command), "sudo -u %s vlc %s", logged_user, output_filename);
-
             int result = system(command);
             if (result == -1)
             {
@@ -927,16 +907,15 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             }
             break;
         }
-
     }
 
     if (attempt >= NUM_ATTEMPT)
     {
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
-        exit(1);
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
+        return -1;
     }
+
+    return 0;
 }
 
 void test_alloc(void *ptr, const char *msg)
@@ -1006,49 +985,87 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
         return;
     }
 
+    int window_size = 5; // Tamanho da janela deslizante
+    int base = 0; // Base da janela
+    int next_seq_num = 0;
+    int total_packets = 0;
     ssize_t data_size;
-    int current_data_video_index = 0;
 
-    while (!feof(file))
+    packet_t *window[window_size];
+    memset(window, 0, sizeof(window));
+
+    while (!feof(file) || base < total_packets)
     {
-        data_size = fread(data, sizeof(*data), DATA_MAX_LEN, file);
-
-        if (data_size <= 0)
-            break;
-
-        build_packet(packet, current_data_video_index, DADOS, (unsigned char *)data, data_size);
-
-        int is_ack = 0;
-        while (!is_ack && is_ack != -1)
+        while (next_seq_num < base + window_size && !feof(file))
         {
-            if (send_packet(sock, packet, &connection->address, &connection->state) < 0)
+            data_size = fread(data, sizeof(*data), DATA_MAX_LEN, file);
+
+            if (data_size <= 0)
+            {
+                break;
+            }
+
+            packet_t *pkt = malloc(sizeof(packet_t));
+            build_packet(pkt, next_seq_num % MAX_SEQ_NUM, DADOS, (unsigned char *)data, data_size);
+            window[next_seq_num % window_size] = pkt;
+
+            if (send_packet(sock, pkt, &connection->address, &connection->state) < 0)
             {
                 perror("Error sending packet");
                 continue;
             }
 
-            is_ack = wait_for_ack_socket(sock, packet, &connection->address, &connection->state);
-
-            // printf("is_ack: %d\n", is_ack);
-
-#ifdef DEBUG
-            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-#endif
+            next_seq_num++;
+            total_packets++;
         }
 
-        if (is_ack == -1)
+        // Aguarda ACKs
+        packet_t ack_packet;
+        while (recv(sock, &ack_packet, sizeof(ack_packet), 0) > 0)
         {
-            printf("received a timeout");
-            exit(1);
-        }
+            if (ack_packet.type == ACK && (ack_packet.seq_num >= base || ack_packet.seq_num < (base + window_size) % MAX_SEQ_NUM))
+            {
+                base = (ack_packet.seq_num + 1) % MAX_SEQ_NUM;
 
-        current_data_video_index++;
+                // Libera pacotes confirmados
+                for (int i = 0; i < window_size; i++)
+                {
+                    // Verifica se o pacote está dentro da janela
+                    if (window[i] && ((window[i]->seq_num < base && base <= window_size) || (window[i]->seq_num >= base && window[i]->seq_num < (base + window_size) % MAX_SEQ_NUM)))
+                    {
+                        printf("sequencia %d\n", window[i]->seq_num); // Use %d para inteiros
+                        free(window[i]);
+                        window[i] = NULL;
+                        // Remova a linha abaixo, pois window[i] já foi liberado e definido como NULL
+                        // printf("sequencia %d\n", window[i]->seq_num);
+                    }
+                }
+
+                //
+                // if (base == total_packets % MAX_SEQ_NUM)
+                // {
+                //     break;
+                // }
+            }
+            else if (ack_packet.type == NACK)
+            {
+                // Reenvia pacote perdido
+                int seq_num = ack_packet.seq_num;
+                if (seq_num >= base || seq_num < next_seq_num % MAX_SEQ_NUM)
+                {
+                    if (send_packet(sock, window[seq_num % window_size], &connection->address, &connection->state) < 0)
+                    {
+                        perror("Error resending packet");
+                    }
+                }
+            }
+        }
     }
 
     free(data);
     fclose(file);
 
-    build_packet(packet, 0, FIM, NULL, 0);
+    build_packet(packet, next_seq_num % MAX_SEQ_NUM, FIM, NULL, 0);
     if (send_packet(sock, packet, &connection->address, &connection->state) < 0)
     {
         printf("Error: %s\n", strerror(errno));
