@@ -827,7 +827,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             attempt++;
             int temp_random = rand() % (attempt * attempt);
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d/%d) Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
@@ -839,7 +839,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
 
         if (packet->type == ERRO_NAO_ENCONTRADO)
         {
-            printf("Vídeo não encontrado!! Liste os vídeos e tente novamente!\n");
+            printf("Video nao encontrado!! Liste os videos e tente novamente!\n");
             break;
         }
 
@@ -933,10 +933,30 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 printf("\tTamanho esperado: %d\n", expected_size);
                 return -1;
             }
+            else
+            {
+                printf("Received file size matches the expected size\n");
+                packet_t packet_ack;
+                build_packet(&packet_ack, 0, ACK, NULL, 0);
+                send_ack(sock, &packet_ack, &connection->address, &connection->state);
+            }
 
-            printf("Received file size matches the expected size\n");
-            // Set the file permissions and ownership as required
-            chmod(output_filename, 0666);
+            // set the file rw-rw-rw- permissions
+            if (chmod(output_filename, 0666) != 0)
+            {
+                perror("Erro ao ajustar permissões do arquivo");
+                exit(EXIT_FAILURE);
+            }
+
+            // extract the logname user
+            FILE *fp = popen("logname", "r");
+            if (fp == NULL)
+            {
+                perror("Failed to run logname command");
+                exit(EXIT_FAILURE);
+            }
+
+            // extract the logname user using getlogin
             char *logged_user = getlogin();
             struct passwd *pwd = getpwnam(logged_user);
             if (pwd)

@@ -32,7 +32,9 @@ int main(int argc, char **argv)
 {
     /* connects to the server */
     // char *interface = parse_args(argc, argv, "i:");
-    init_client("lo");
+    args_t args = parse_args(argc, argv, "i:f:");
+
+    init_client(args.interface);
     video_list_t *video_list = malloc(sizeof(video_list_t));
 
     int op = show_menu();

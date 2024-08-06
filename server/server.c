@@ -29,8 +29,9 @@ void init_server(char *interface)
 int main(int argc, char **argv)
 {
     /* connects to the server */
-    // char *interface = parse_args(argc, argv, "i:");
-    init_server("lo");
+    args_t args = parse_args(argc, argv, "i:f:");
+
+    init_server(args.interface);
 
     packet_t packet;
 
@@ -67,17 +68,14 @@ int main(int argc, char **argv)
             break;
 
         case BAIXAR:
-            // Certifique-se de que packet.data é uma string nula terminada
-            char *video_name = packet.data;
+           char *video_name = packet.data;
             printf("Recebendo pacote de download\n");
-
-            printf("Nome do video escolhido %s:\n\n\n", packet.data);
+            printf("Nome do video escolhido %s:\n\n\n", video_name);
 
             packet_t packet_init_seq;
             build_packet(&packet_init_seq, 0, INICIO_SEQ, NULL, 0);
             send_init_sequence(connection.socket, &packet_init_seq, &connection.address, &(connection.state));
 
-            printf("%sn\n\n\n", video_name);
             char *video_path = get_video_path(video_name);
             if (video_path)
             {
@@ -91,8 +89,8 @@ int main(int argc, char **argv)
             }
 
             break;
-            // default:
-            //     receive_packet(connection.socket, &packet, &connection);
+        // default:
+        //     receive_packet(connection.socket, &packet, &connection);
         }
     }
 }
