@@ -379,6 +379,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
     int is_ack = 0;
     int error = -1;
 
+    // if a nack is received, resend the packet
     while (!is_ack)
     {
         // code_vpn_strings(packet);
@@ -584,14 +585,16 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         printf("[ETHBKP][RCVM] Message received: ");
 #endif
 
-        // error = check_crc(packet);
-        // if (error)
-        // {
-        //     packet_t packet_nack;
-        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
-        //     send_nack(sock, packet, &connection->address, &connection->state);
-        //     continue;
-        // }
+        // ESTA CORRETO, SE O SERVIDOR RECEBER
+        // UM NACK ELE REENVIA O PACOTE
+        error = check_crc(packet);
+        if (error)
+        {
+            packet_t packet_nack;
+            build_packet(&packet_nack, 0, ACK, NULL, 0);
+            send_nack(sock, packet, &connection->address, &connection->state);
+            continue;
+        }
 
         // recebe um pacote de inicio de sequencia
         if (packet->type == INICIO_SEQ)
