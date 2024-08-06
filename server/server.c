@@ -65,10 +65,6 @@ int main(int argc, char **argv)
                 // process_videos(connection, &packet, videos);
             }
 
-            // send_packet(connection.socket, &packet, &connection.address, &connection.state);
-            // build_packet(&packet, i, LISTAR, video_name, sizeof(video_name));
-            // printf("Enviando video com nome: %s\n", video_name);
-            // send_packet(connection.socket, &packet, &connection.address);
             free(videos);
 
             break;
@@ -97,7 +93,6 @@ int main(int argc, char **argv)
             receive_packet(connection.socket, &packet, &connection);
         }
 
-        // break;
     }
 }
 
