@@ -29,8 +29,9 @@ void init_server(char *interface)
 int main(int argc, char **argv)
 {
     /* connects to the server */
-    // char *interface = parse_args(argc, argv, "i:");
-    init_server("lo");
+    args_t args = parse_args(argc, argv, "i:f:");
+
+    init_server(args.interface);
 
     packet_t packet;
 
