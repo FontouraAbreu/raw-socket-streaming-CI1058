@@ -340,8 +340,8 @@ void decode_vpn_strings(packet_t *packet)
 }
 
 /*
-* Função que envia um pacote sem esperar por um ACK
-*/
+ * Função que envia um pacote sem esperar por um ACK
+ */
 ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state)
 {
     packet_union_t pu;
@@ -825,9 +825,9 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
         if (size == -1)
         {
             attempt++;
-            int temp_random = rand() % attempt * attempt;
+            int temp_random = rand() % (attempt * attempt);
             usleep(temp_random * 1000);
-            printf("Conexão interrompida!!\n\t(%d\\%d)Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
+            printf("Conexão interrompida!!\n\t(%d/%d) Esperando por: %ds\n", attempt, NUM_ATTEMPT, temp_random);
             continue;
         }
         attempt = 0;
@@ -839,7 +839,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
 
         if (packet->type == ERRO_NAO_ENCONTRADO)
         {
-            printf("Video nao encontrado!! Liste os videos e tente novamente!\n");
+            printf("Vídeo não encontrado!! Liste os vídeos e tente novamente!\n");
             break;
         }
 
@@ -902,11 +902,18 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 build_packet(&ack_packet, (base - 1 + MAX_SEQ_NUM) % MAX_SEQ_NUM, ACK, NULL, 0);
                 send_ack(sock, &ack_packet, &connection->address, &connection->state);
             }
+            else if ((seq_num >= window_end && window_end >= base) ||
+                     (seq_num >= window_end && window_end < base))
+            {
+                // Pacote da janela, enviar N=ACK
+                packet_t ack_packet;
+                build_packet(&ack_packet, (base - 1 + MAX_SEQ_NUM) % MAX_SEQ_NUM, ACK, NULL, 0);
+                send_ack(sock, &ack_packet, &connection->address, &connection->state);
+            }
             else
             {
-                // Pacote fora da janela, enviar NACK
                 packet_t nack_packet;
-                build_packet(&nack_packet, base, NACK, NULL, 0);
+                build_packet(&nack_packet, (base - 1 + MAX_SEQ_NUM) % MAX_SEQ_NUM, NACK, NULL, 0);
                 send_nack(sock, &nack_packet, &connection->address, &connection->state);
             }
         }
@@ -1029,7 +1036,7 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
     }
 
     int window_size = 5; // Tamanho da janela deslizante
-    int base = 0; // Base da janela
+    int base = 0;        // Base da janela
     int next_seq_num = 0;
     int total_packets = 0;
     ssize_t data_size;
@@ -1066,29 +1073,24 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
         packet_t ack_packet;
         while (recv(sock, &ack_packet, sizeof(ack_packet), 0) > 0)
         {
-            if (ack_packet.type == ACK && (ack_packet.seq_num >= base || ack_packet.seq_num < (base + window_size) % MAX_SEQ_NUM))
+            if (ack_packet.type == ACK &&
+                ((ack_packet.seq_num >= base && ack_packet.seq_num < base + window_size) ||
+                 (base + window_size > MAX_SEQ_NUM && (ack_packet.seq_num >= base || ack_packet.seq_num < (base + window_size) % MAX_SEQ_NUM))))
             {
                 base = (ack_packet.seq_num + 1) % MAX_SEQ_NUM;
 
                 // Libera pacotes confirmados
                 for (int i = 0; i < window_size; i++)
                 {
-                    // Verifica se o pacote está dentro da janela
-                    if (window[i] && ((window[i]->seq_num < base && base <= window_size) || (window[i]->seq_num >= base && window[i]->seq_num < (base + window_size) % MAX_SEQ_NUM)))
+                    if (window[i] &&
+                        ((window[i]->seq_num >= base && window[i]->seq_num < base + window_size) ||
+                         (base + window_size > MAX_SEQ_NUM && (window[i]->seq_num >= base || window[i]->seq_num < (base + window_size) % MAX_SEQ_NUM))))
                     {
                         printf("sequencia %d\n", window[i]->seq_num); // Use %d para inteiros
                         free(window[i]);
                         window[i] = NULL;
-                        // Remova a linha abaixo, pois window[i] já foi liberado e definido como NULL
-                        // printf("sequencia %d\n", window[i]->seq_num);
                     }
                 }
-
-                //
-                // if (base == total_packets % MAX_SEQ_NUM)
-                // {
-                //     break;
-                // }
             }
             else if (ack_packet.type == NACK)
             {
@@ -1134,19 +1136,21 @@ char *get_video_path(char *video_name)
         if (strcmp(dir->d_name, video_name) == 0)
         {
             // Construir o caminho completo do vídeo
-            video_path = malloc(strlen(VIDEO_LOCATION) + strlen(video_name) + 1);
+            size_t video_path_len = strlen(VIDEO_LOCATION) + strlen(video_name) + 1;
+            video_path = malloc(video_path_len + 1); // +1 para o terminador nulo
             if (video_path)
             {
-                strcpy(video_path, VIDEO_LOCATION);
-                strcat(video_path, video_name);
+                snprintf(video_path, video_path_len + 1, "%s%s", VIDEO_LOCATION, video_name);
+                printf("video_path encontrado %s\n", video_path);
             }
             break;
         }
-        printf("%s\n", dir->d_name);
     }
 
-    printf("video_path %s\n", VIDEO_LOCATION);
-    printf("video_path %s\n", video_path);
+    if (video_path == NULL)
+    {
+        printf("Vídeo não encontrado\n");
+    }
 
     closedir(d);
     return video_path;

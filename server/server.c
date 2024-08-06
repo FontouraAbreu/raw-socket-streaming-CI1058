@@ -67,13 +67,18 @@ int main(int argc, char **argv)
             break;
 
         case BAIXAR:
+            // Certifique-se de que packet.data é uma string nula terminada
+            char *video_name = packet.data;
             printf("Recebendo pacote de download\n");
+
             printf("Nome do video escolhido %s:\n\n\n", packet.data);
 
-            build_packet(&packet, 0, INICIO_SEQ, NULL, 0);
-            send_init_sequence(connection.socket, &packet, &connection.address, &(connection.state));
+            packet_t packet_init_seq;
+            build_packet(&packet_init_seq, 0, INICIO_SEQ, NULL, 0);
+            send_init_sequence(connection.socket, &packet_init_seq, &connection.address, &(connection.state));
 
-            char *video_path = get_video_path(packet.data);
+            printf("%sn\n\n\n", video_name);
+            char *video_path = get_video_path(video_name);
             if (video_path)
             {
                 send_video(connection.socket, &packet, &connection, video_path);
@@ -86,10 +91,9 @@ int main(int argc, char **argv)
             }
 
             break;
-        // default:
-        //     receive_packet(connection.socket, &packet, &connection);
+            // default:
+            //     receive_packet(connection.socket, &packet, &connection);
         }
-
     }
 }
 
@@ -154,7 +158,7 @@ video_list_t *list_videos()
                 }
                 video.size = entry->d_reclen;
 
-                //pega a duração do video
+                // pega a duração do video
                 video.duration = get_video_duration(VIDEO_LOCATION, entry->d_name);
                 // extracts the video path from entry
                 video.path = get_video_path(entry->d_name);
@@ -199,9 +203,11 @@ video_list_t *list_videos()
     return video_list;
 }
 
-long get_file_size(char *filename) {
+long get_file_size(char *filename)
+{
     struct stat file_status;
-    if (stat(filename, &file_status) < 0) {
+    if (stat(filename, &file_status) < 0)
+    {
         return -1;
     }
 
@@ -277,9 +283,9 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             printf("RECEBEU ACK DO NOME DO VIDEO: %d\n", is_ack);
 
-        #ifdef DEBUG
+#ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
         // Send the video size packet
@@ -303,9 +309,9 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             printf("RECEBEU ACK DO TAMANHO DO VIDEO: %d\n", is_ack);
 
-        #ifdef DEBUG
+#ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
         // Send the video duration packet
@@ -328,9 +334,9 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             printf("is_ack: %d\n", is_ack);
 
-        #ifdef DEBUG
+#ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
         num_seq = 0;
