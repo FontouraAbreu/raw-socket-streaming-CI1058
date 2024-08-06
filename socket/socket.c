@@ -251,7 +251,6 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
         if (packet->type == ERRO_SEM_VIDEOS)
         {
             printf("Erro ao receber pacote: não há videos\n");
-            exit(1);
             return ERRO_SEM_VIDEOS;
         }
 

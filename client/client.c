@@ -68,12 +68,6 @@ int main(int argc, char **argv)
                 printf("Recebendo videos...\n");
                 receive_packet_sequence(connection.socket, &packet, &connection, video_list);
             }
-
-            if (video_list->num_videos == 0)
-            {
-                printf("Nenhum video disponivel\n");
-                break;
-            }
             else
             {
                 printf("Videos disponiveis:\n");
@@ -191,7 +185,6 @@ video_t *request_videos()
     if (status == ERRO_SEM_VIDEOS)
     {
         printf("Nenhum video disponivel\n");
-        exit(1);
         return videos;
     }
 
