@@ -1,14 +1,12 @@
 #include "utils.h"
-#include <unistd.h> // Add this line to include the declaration for "optarg"
-#include <getopt.h> // Add this line to include the declaration for "optarg"
 
 args_t parse_args(int argc, char **argv, char *optstring)
 {
     int opt;
-    args_t args = { NULL, NULL };
+    args_t args = { NULL };
 
-    if (argc != 5) {
-        fprintf(stderr, "Usage: %s -i <interface> -f <folder>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s -i <interface>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -19,17 +17,15 @@ args_t parse_args(int argc, char **argv, char *optstring)
         case 'i':
             args.interface = optarg;
             break;
-        case 'f':
-            args.folder = optarg;
-            break;
+
         default:
-            fprintf(stderr, "Usage: %s -i <interface> -f <folder>\n", argv[0]);
+            fprintf(stderr, "Usage: %s -i <interface>\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
 
-    if (args.interface == NULL || args.folder == NULL) {
-        fprintf(stderr, "Usage: %s -i <interface> -f <folder>\n", argv[0]);
+    if (args.interface == NULL) {
+        fprintf(stderr, "Usage: %s -i <interface>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 

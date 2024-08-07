@@ -14,7 +14,8 @@ void init_server(char *interface)
     connection.socket = ConexaoRawSocket(interface);
 
     // Destination MAC address (example, use the actual destination address)
-    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
+    // Broadcast address for example
+    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     // Prepare sockaddr_ll structure
     memset(&connection.address, 0, sizeof(connection.address));
@@ -28,7 +29,7 @@ void init_server(char *interface)
 
 int main(int argc, char **argv)
 {
-    /* connects to the server */
+
     args_t args = parse_args(argc, argv, "i:f:");
 
     init_server(args.interface);
@@ -60,7 +61,6 @@ int main(int argc, char **argv)
 
                 // quando receber o ack, chama a função process_videos
                 process_videos(connection, &packet, videos);
-                // process_videos(connection, &packet, videos);
             }
 
             free(videos);
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             break;
 
         case BAIXAR:
-           char *video_name = packet.data;
+            char *video_name = packet.data;
             printf("Recebendo pacote de download\n");
             printf("Nome do video escolhido %s:\n\n\n", video_name);
 
@@ -89,14 +89,16 @@ int main(int argc, char **argv)
             }
 
             break;
-        // default:
-        //     receive_packet(connection.socket, &packet, &connection);
+        default:
+            receive_packet(connection.socket, &packet, &connection);
         }
-
     }
 }
 
-// pega duração do video
+/*
+ * Função que recebe um video
+ * Retorna a duracao dele
+ */
 int get_video_duration(char *video_location, char *video_name)
 {
     char command[1024];
@@ -116,6 +118,10 @@ int get_video_duration(char *video_location, char *video_name)
     return atoi(duration_str);
 }
 
+/*
+ * Função que lista os videos disponíveis no servidor
+ * Retorna um ponteiro para um array de video_t
+ */
 video_list_t *list_videos()
 {
     DIR *directory;
@@ -146,7 +152,8 @@ video_list_t *list_videos()
 
                 // Extrai informações do vídeo
                 video_t video;
-                video.name = strdup(entry->d_name); // Copia o nome do arquivo para o campo name do video_t
+                // Copia o nome do arquivo para o campo name do video_t
+                video.name = strdup(entry->d_name);
                 if (!video.name)
                 {
                     perror("Erro ao alocar memória para video->name");
@@ -157,7 +164,7 @@ video_list_t *list_videos()
                 }
                 video.size = entry->d_reclen;
 
-                //pega a duração do video
+                // pega a duração do video
                 video.duration = get_video_duration(VIDEO_LOCATION, entry->d_name);
                 // extracts the video path from entry
                 video.path = get_video_path(entry->d_name);
@@ -166,8 +173,11 @@ video_list_t *list_videos()
                 if (!video.path)
                 {
                     perror("Erro ao alocar memória para video->path");
-                    free(video.name); // Libera memória alocada para o nome do arquivo
+                    // Libera memória alocada para o nome do arquivo
+                    free(video.name);
+
                     closedir(directory);
+
                     free(video_list->videos);
                     free(video_list);
                     return NULL;
@@ -176,17 +186,22 @@ video_list_t *list_videos()
                 strcat(video.path, entry->d_name);
 
                 // Adiciona o video à lista
-                video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t)); // Ajusta o tamanho da lista para acomodar o novo vídeo
+                // Ajusta o tamanho da lista para acomodar o novo vídeo
+                video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
                 if (!video_list->videos)
                 {
                     perror("Erro ao realocar memória para a lista de vídeos");
-                    free(video.name); // Libera memória alocada para o nome do arquivo
-                    free(video.path); // Libera memória alocada para o caminho do vídeo
+                    // Libera memória alocada para o nome do arquivo
+                    free(video.name);
+                    // Libera memória alocada para o caminho do vídeo
+                    free(video.path);
+
                     closedir(directory);
                     free(video_list);
                     return NULL;
                 }
-                video_list->videos[video_list->num_videos] = video; // Adiciona o vídeo à lista
+                // Adiciona o vídeo à lista
+                video_list->videos[video_list->num_videos] = video;
                 video_list->num_videos++;
             }
         }
@@ -202,16 +217,23 @@ video_list_t *list_videos()
     return video_list;
 }
 
-long get_file_size(char *filename) {
+/*
+ * Função que retorna o tamanho do video
+ */
+long get_file_size(char *filename)
+{
     struct stat file_status;
-    if (stat(filename, &file_status) < 0) {
+    if (stat(filename, &file_status) < 0)
+    {
         return -1;
     }
 
     return file_status.st_size;
 }
 
-// wait for ack
+/*
+ * Função que espera por um ack ou nack
+ */
 int wait_for_ack(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state)
 {
     ssize_t size;
@@ -233,14 +255,18 @@ int wait_for_ack(int sockfd, packet_t *packet, struct sockaddr_ll *address, int 
         }
         else
         {
+            // Reenviar pacote atual em caso de erro
             print_packet(packet);
-            send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+            send_packet(sockfd, packet, address, state);
         }
     }
 
     return is_ack;
 }
 
+/*
+ * Função que processa os videos
+ */
 void process_videos(connection_t connection, packet_t *packet, video_list_t *videos)
 {
     int current_video_index = 0;
@@ -259,7 +285,7 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
         printf("Duração: %d\n", video_duration);
         printf("Tamanho: %d\n", video_size);
 
-        // Send the video name packet
+        // envia o nome do video
         build_packet(packet, num_seq, DESCRITOR, (unsigned char *)video_name, video_name_length);
         packet_union_t pu;
         memcpy(pu.raw, packet, sizeof(packet_t));
@@ -278,14 +304,13 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
 
+#ifdef DEBUG
             printf("RECEBEU ACK DO NOME DO VIDEO: %d\n", is_ack);
-
-        #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
-        // Send the video size packet
+        // envia o tamanho do video
         num_seq++;
         build_packet(packet, num_seq, TAMANHO, (unsigned char *)&video_size, sizeof(int));
         memcpy(pu.raw, packet, sizeof(packet_t));
@@ -304,14 +329,13 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
 
+#ifdef DEBUG
             printf("RECEBEU ACK DO TAMANHO DO VIDEO: %d\n", is_ack);
-
-        #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
-        // Send the video duration packet
+        // envia a duração do video
         num_seq++;
         build_packet(packet, num_seq, DURACAO, (unsigned char *)&video_duration, sizeof(int));
         memcpy(pu.raw, packet, sizeof(packet_t));
@@ -329,20 +353,18 @@ void process_videos(connection_t connection, packet_t *packet, video_list_t *vid
 
             is_ack = wait_for_ack(connection.socket, packet, &connection.address, &connection.state);
 
+#ifdef DEBUG
             printf("is_ack: %d\n", is_ack);
-
-        #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-        #endif
+#endif
         }
 
         num_seq = 0;
         current_video_index++;
     }
 
-    // All videos have been sent, send the end packet
+    // Envia pacote de fim de listagem
     printf("Enviando pacote de fim de listagem\n");
     build_packet(packet, 0, FIM, NULL, 0);
     send_packet(connection.socket, packet, &connection.address, &connection.state);
-    // exit(EXIT_SUCCESS);
 }

@@ -11,16 +11,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "../server/server.h"
 #include "../socket/socket.h"
 #include "../client/client.h"
 
 typedef struct {
     char *interface;
-    char *folder;
 } args_t;
 
 args_t parse_args(int argc, char **argv, char *optstring);
-
 
 #endif // __UTILS_H__

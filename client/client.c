@@ -17,7 +17,8 @@ void init_client(char *interface)
     connection.socket = ConexaoRawSocket(interface);
 
     // Destination MAC address (example, use the actual destination address)
-    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast address for example
+    // Broadcast address for example
+    unsigned char dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     // Prepare sockaddr_ll structure
     memset(&connection.address, 0, sizeof(connection.address));
@@ -30,9 +31,8 @@ void init_client(char *interface)
 
 int main(int argc, char **argv)
 {
-    /* connects to the server */
-    // char *interface = parse_args(argc, argv, "i:");
-    args_t args = parse_args(argc, argv, "i:f:");
+    // Parse arguments
+    args_t args = parse_args(argc, argv, "i:");
 
     init_client(args.interface);
     video_list_t *video_list = malloc(sizeof(video_list_t));
@@ -44,12 +44,12 @@ int main(int argc, char **argv)
         switch (op)
         {
         case LIST:
+            // Solicita a lista de vídeos disponíveis no servidor
             video_t *videos = request_videos();
 
             packet_t packet;
             wait_for_init_sequence(connection.socket, &packet, &connection);
 
-            // Process the received packet
             if (packet.type == ERRO)
             {
                 printf("Erro ao listar videos, tente novamente!\n");
@@ -77,7 +77,6 @@ int main(int argc, char **argv)
                 for (int i = 0; i < video_list->num_videos; i++)
                 {
                     printf("%d. %s\n", i + 1, video_list->videos[i].name);
-                    // print video size in MB/GB
                     if (video_list->videos[i].size > 1024 * 1024)
                     {
                         printf("Tamanho: %.2f MB\n", (float)video_list->videos[i].size / (1024 * 1024));
@@ -99,14 +98,18 @@ int main(int argc, char **argv)
                 printf("Nenhum video disponivel, liste os videos para ver o catalogo\n");
                 break;
             }
+
             int chosen_video_index;
             scanf("%d", &chosen_video_index);
+
             if (chosen_video_index < 1 || chosen_video_index > video_list->num_videos)
             {
                 printf("Opcao invalida\n");
                 break;
             }
+
             video_t chosen_video = video_list->videos[chosen_video_index - 1];
+            char *video_path = malloc(strlen(VIDEO_CLIENT_LOCATION) + strlen(chosen_video.name) + 1);
             printf("Baixando video %s\n", chosen_video.name);
 
             request_download(chosen_video.name);
@@ -116,36 +119,11 @@ int main(int argc, char **argv)
             if (packet.type != ACK)
                 print_packet(&packet);
 
-
             if (packet.type == INICIO_SEQ)
             {
                 printf("Recebendo dados do video...\n");
                 receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
             }
-
-
-            // int downloaded_succesfully = 0;
-            // while (!downloaded_succesfully) {
-            //     request_download(chosen_video.name);
-
-            //     wait_for_init_sequence(connection.socket, &packet, &connection);
-
-            //     if (packet.type != ACK)
-            //         print_packet(&packet);
-
-            //     if (packet.type == INICIO_SEQ)
-            //     {
-            //         printf("Recebendo dados do video...\n");
-            //         int has_received = receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
-            //         if (has_received == 1) {
-            //             printf("Video baixado com sucesso\n");
-            //             downloaded_succesfully = 1;
-            //         }
-            //         else {
-            //             printf("Erro ao baixar video, tente novamente!!\n");
-            //         }
-            //     }
-            // }
 
             break;
         case QUIT:
@@ -162,9 +140,6 @@ int main(int argc, char **argv)
         op = show_menu();
     }
     op = show_menu();
-
-    // receive_packet(sockfd, &packet);
-    // close(sockfd);
 
     return 0;
 }
@@ -192,8 +167,6 @@ video_t *request_videos()
         return videos;
     }
 
-    // wait for the server to send the list of videos, with ACK
-    // receive_packet(connection.socket, &packet, &connection);
     if (packet.type == ACK)
     {
         printf("Videos request sent\n");
@@ -202,7 +175,9 @@ video_t *request_videos()
     return videos;
 }
 
-// enveio o nome do video
+/*
+ * Função que solicita o download de um video ao servidor
+ */
 void request_download(char *video_name)
 {
     packet_t packet;
@@ -217,6 +192,9 @@ void request_download(char *video_name)
     send_packet(connection.socket, &packet, &connection.address, &connection.state);
 }
 
+/*
+ * Função que exibe o menu de opções
+ */
 int show_menu()
 {
     printf("1. Listar videos\n");

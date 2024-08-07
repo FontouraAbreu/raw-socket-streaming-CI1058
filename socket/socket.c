@@ -76,7 +76,7 @@ int ConexaoRawSocket(char *device)
         exit(-1);
     }
 
-    // set socket timeout configuration
+    // Timeout do socket
     struct timeval tv;
     tv.tv_sec = TIMEOUT_S;
     tv.tv_usec = 0;
@@ -97,13 +97,15 @@ void buffer_to_message(unsigned char *buffer, packet_t *packet)
     packet->crc = pu.packet.crc;
 }
 
-// Listen to a socket, if a packet is received, it is copied to the output packet
+/*
+ * Função que ouve a porta e retorna o pacote recebido
+ */
 int listen_socket(int _socket, packet_t *packet)
 {
     unsigned char buffer[sizeof(packet_union_t)] = {0};
     ssize_t bytes_received = recv(_socket, buffer, sizeof(buffer), 0);
 
-// check if it is a duplicate packet using ifrindex
+
 #ifdef DEBUG
     printf("Waiting for packet\n");
 #endif
@@ -129,7 +131,6 @@ int listen_socket(int _socket, packet_t *packet)
         if (packet->type == ERRO)
         {
             printf("Erro ao receber pacote\n");
-            // memcpy(error, packet->data, sizeof(int));
             is_ack = 2;
             break;
         }
@@ -234,8 +235,6 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
         }
         attempt = 0;
 
-        // buffer_to_message(backup->recv_buffer, backup->recv_message);
-
         if (packet->starter_mark != STARTER_MARK)
             continue;
 
@@ -270,11 +269,9 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 
     if (attempt >= NUM_ATTEMPT)
     {
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
-        printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
+        printf("Número máximo de tentativas atingido!!\n");
         exit(1);
         return TIMEOUT_ERROR;
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
     return is_ack;
@@ -531,17 +528,8 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         if (packet->starter_mark != STARTER_MARK)
             continue;
 
-        printf("type %d\n", packet->type);
         if (packet->type == ACK || packet->type == NACK)
             continue;
-
-            // if (packet->seq_num == penult_packet.seq_num) {
-            //     send_packet(sock, &last_packet, &connection->address, &connection->state);
-            //     continue;
-            // }
-
-            // if (packet->type != RESET_SEQUENCE && packet->seq_num != last_packet.seq_num)
-            //     continue;
 
 #ifdef DEBUG
 #endif
@@ -557,11 +545,7 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         //     continue;
         // }
 
-        // envia um ACK
         break;
-
-        // if (check_message_parity(packet))
-        //     break;
     };
 
     packet_t packet_ack;
@@ -591,13 +575,10 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         attempt = 0;
 
         decode_vpn_strings(packet);
-        printf("type %d\n", packet->type);
 
         if (packet->starter_mark != STARTER_MARK)
             continue;
 
-        // if it is an error packet
-        // break and let the client handle it
         if (packet->type == ERRO_SEM_VIDEOS)
         {
             break;
@@ -606,20 +587,11 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         if (packet->type == ACK || packet->type == NACK)
             continue;
 
-            // if (packet->seq_num == penult_packet.seq_num) {
-            //     send_packet(sock, &last_packet, &connection->address, &connection->state);
-            //     continue;
-            // }
-
-            // if (packet->type != RESET_SEQUENCE && packet->seq_num != last_packet.seq_num)
-            //     continue;
 
 #ifdef DEBUG
         printf("[ETHBKP][RCVM] Message received: ");
 #endif
 
-        // ESTA CORRETO! SE O SERVIDOR RECEBER
-        // UM NACK ELE REENVIA O PACOTE
         error = check_crc(packet);
         if (error)
         {
@@ -638,10 +610,8 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
     if (attempt >= NUM_ATTEMPT)
     {
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
         exit(1);
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
     packet_t packet_ack;
@@ -660,7 +630,6 @@ void add_video_to_list(video_list_t *video_list, video_t *video)
     video_t *new_videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
     if (!new_videos)
     {
-        // Handle error, possibly free previously allocated resources and exit or return an error
         free(video);
         return;
     }
@@ -680,7 +649,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
     while (1 && attempt < NUM_ATTEMPT)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
-        // recv returns -1 if a timeout has happened
         if (size == -1)
         {
             attempt++;
@@ -726,7 +694,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         {
             print_packet(packet);
             // Supondo que o nome do vídeo esteja nos dados do pacote
-            current_video->name = malloc(packet->size + 1); // +1 para o terminador nulo
+            // +1 para o terminador nulo
+            current_video->name = malloc(packet->size + 1);
             strcpy(current_video->name, packet->data);
 
             packet_t packet_ack;
@@ -755,7 +724,8 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
             print_packet(packet);
             video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
             // Supondo que a duração esteja nos dados do pacote como um inteiro
-            current_video->duration = *((int *)packet->data); // Ajuste conforme necessário
+            // Ajuste conforme necessário
+            current_video->duration = *((int *)packet->data);
 
             printf("Adicionando video na lista\n");
             printf("Nome: %s\n", current_video->name);
@@ -788,13 +758,10 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
 
     if (attempt >= NUM_ATTEMPT)
     {
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
         exit(1);
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 
-    // return the list of videos
     return video_list;
 }
 
@@ -893,7 +860,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             fclose(file);
             printf("File received successfully\n");
 
-            // check if the size of the received file is the same as the expected size
+            // Verifica se o tamanho do arquivo recebido é o esperado
             struct stat st;
             stat(output_filename, &st);
             if (st.st_size != expected_size)
@@ -914,14 +881,14 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 send_ack(sock, &packet_ack, &connection->address, &connection->state);
             }
 
-            // set the file rw-rw-rw- permissions
+            // Muda as permissões do arquivo para que possa ser executado com o VLC
             if (chmod(output_filename, 0666) != 0)
             {
                 perror("Erro ao ajustar permissões do arquivo");
                 exit(EXIT_FAILURE);
             }
 
-            // extract the logname user
+            // Extrai o usuário logado usando getlogin
             FILE *fp = popen("logname", "r");
             if (fp == NULL)
             {
@@ -929,7 +896,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 exit(EXIT_FAILURE);
             }
 
-            // extract the logname user using getlogin
             char *logged_user = getlogin();
             if (logged_user == NULL)
             {
@@ -937,7 +903,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 exit(EXIT_FAILURE);
             }
 
-            // get the user ID and group ID of the logged user
+            // Obtém as informações do usuário, como UID e GID
             struct passwd *pwd = getpwnam(logged_user);
             if (pwd == NULL)
             {
@@ -948,10 +914,8 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             uid_t uid = pwd->pw_uid;
             gid_t gid = pwd->pw_gid;
 
-            // Save the original user ID
-            // uid_t original_uid = getuid();
 
-            // change file ownership so that it can be run with vlc
+            // Altera o proprietário do arquivo para o usuário logado
             if (chown(output_filename, uid, gid) != 0)
             {
                 perror("Failed to change file ownership");
@@ -976,10 +940,8 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
 
     if (attempt >= NUM_ATTEMPT)
     {
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
         printf("\tmaximum number of timeouts reached!!\n\tPlease try again!\n");
         exit(1);
-        // IMPLEMENTAR RECUPERAÇAO DO TIMEOUT AQUI
     }
 }
 
@@ -1015,8 +977,9 @@ int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *addres
         }
         else
         {
+            // Reenviar pacote atual em caso de erro
             print_packet(packet);
-            send_status = send_packet(sockfd, packet, address, state); // Reenviar pacote atual em caso de erro
+            send_status = send_packet(sockfd, packet, address, state);
         }
 
         if (send_status == TIMEOUT_ERROR)
@@ -1073,8 +1036,6 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
 
             is_ack = wait_for_ack_socket(sock, packet, &connection->address, &connection->state);
 
-            // printf("is_ack: %d\n", is_ack);
-
 #ifdef DEBUG
             printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
 #endif
@@ -1119,7 +1080,8 @@ char *get_video_path(char *video_name)
         {
             // Construir o caminho completo do vídeo
             size_t video_path_len = strlen(VIDEO_LOCATION) + strlen(video_name) + 1;
-            video_path = malloc(video_path_len + 1); // +1 para o terminador nulo
+            // +1 para o terminador nulo
+            video_path = malloc(video_path_len + 1);
             if (video_path)
             {
                 snprintf(video_path, video_path_len + 1, "%s%s", VIDEO_LOCATION, video_name);
@@ -1138,10 +1100,11 @@ char *get_video_path(char *video_name)
     return video_path;
 }
 
+
 int check_crc(packet_t *packet)
 {
     unsigned char received_crc = packet->crc;
-    packet->crc = 0; // Zero out CRC for validation
+    packet->crc = 0;
     unsigned char computed_crc = calculate_crc8((unsigned char *)packet, sizeof(packet_t) - 1);
 
     return received_crc != computed_crc;

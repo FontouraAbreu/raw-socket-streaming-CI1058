@@ -21,6 +21,8 @@
 video_list_t *list_videos();
 
 void process_videos(connection_t connection, packet_t *packet, video_list_t *videos);
+int wait_for_ack(int sockfd, packet_t *packet, struct sockaddr_ll *address, int *state);
 long get_file_size(char *filename);
+int get_video_duration(char *video_location, char *video_name);
 
 #endif // __SERVER_H__
