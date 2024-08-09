@@ -2,7 +2,7 @@
 
 connection_t connection;
 
-#define VIDEO_CLIENT_LOCATION "./videos_client/testevideo.mp4"
+#define VIDEO_CLIENT_LOCATION "./videos_client/"
 
 typedef enum
 {
@@ -110,7 +110,9 @@ int main(int argc, char **argv)
 
             video_t chosen_video = video_list->videos[chosen_video_index - 1];
             char *video_path = malloc(strlen(VIDEO_CLIENT_LOCATION) + strlen(chosen_video.name) + 1);
-            printf("Baixando video %s\n", chosen_video.name);
+            strcpy(video_path, VIDEO_CLIENT_LOCATION);
+            strcat(video_path, chosen_video.name);
+            printf("Baixando video %s\n", video_path);
 
             request_download(chosen_video.name);
 
@@ -122,7 +124,7 @@ int main(int argc, char **argv)
             if (packet.type == INICIO_SEQ)
             {
                 printf("Recebendo dados do video...\n");
-                receive_video_packet_sequence(connection.socket, &packet, &connection, VIDEO_CLIENT_LOCATION, chosen_video.size);
+                receive_video_packet_sequence(connection.socket, &packet, &connection, chosen_video.name, chosen_video.size);
             }
 
             break;
@@ -158,6 +160,9 @@ video_t *request_videos()
     memset(packet.data, 0, DATA_LEN);
     packet.crc = calculate_crc8((unsigned char *)&packet, sizeof(packet_t) - 1);
     video_t *videos = NULL;
+
+    unsigned char buffer[DATA_LEN];
+    message_to_buffer(&packet, buffer);
 
     int status = send_packet(connection.socket, &packet, &connection.address, &connection.state);
 

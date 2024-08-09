@@ -35,6 +35,7 @@ int main(int argc, char **argv)
     init_server(args.interface);
 
     packet_t packet;
+    printf("teste");
 
     while (1)
     {
@@ -74,6 +75,8 @@ int main(int argc, char **argv)
 
             packet_t packet_init_seq;
             build_packet(&packet_init_seq, 0, INICIO_SEQ, NULL, 0);
+            unsigned char buffer[DATA_LEN];
+            message_to_buffer(&packet_init_seq, buffer);
             send_init_sequence(connection.socket, &packet_init_seq, &connection.address, &(connection.state));
 
             char *video_path = get_video_path(video_name);

@@ -46,7 +46,7 @@ typedef struct {
     unsigned char size: 6;
     unsigned char seq_num: 5;
     unsigned char type: 5;
-    unsigned char data[DATA_LEN];
+    unsigned char *data;
     unsigned char crc: 8;
 } packet_t;
 
@@ -96,6 +96,7 @@ int listen_socket(int _socket, packet_t *packet);
 
 video_t *init_video_t();
 
+void create_packet(packet_t *packet);
 void build_packet(packet_t *pkt, unsigned char seq_num, unsigned char type, unsigned char *data, size_t data_len);
 ssize_t send_packet(int sock, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
 ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *address, int *connection_state);
@@ -120,5 +121,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
 char* get_video_path(char *video_name);
 void test_alloc(void *ptr, const char *msg);
 
+void message_to_buffer(packet_t *packet, unsigned char *buffer);
+void buffer_to_message(unsigned char *buffer, packet_t *packet);
 
 #endif // SOCKET_H

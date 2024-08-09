@@ -85,16 +85,62 @@ int ConexaoRawSocket(char *device)
     return soquete;
 }
 
-void buffer_to_message(unsigned char *buffer, packet_t *packet)
+
+void create_packet(packet_t *packet) {
+    packet->starter_mark = 0;
+    packet->size = 0;
+    packet->seq_num = 0;
+    packet->type = 0;
+    packet->data = NULL;
+    packet->crc = 0;
+
+    return packet;
+}
+
+void buffer_to_message(unsigned char *buffer, packet_t *packet) {
+    if (!buffer || !packet)
+        return;
+
+    // message_reset(message);
+
+    packet->starter_mark = buffer[0];
+    packet->size = (buffer[1] >> 2) & 0x3F;
+
+    packet->seq_num = ((buffer[1] & 0x03) << 3) + (buffer[2] >> 5);
+
+    packet->type = buffer[2] & 0x1F;
+
+    if (packet->size)
+    {
+        unsigned char *tempData = malloc(sizeof(unsigned char) * packet->size);
+        packet->data = tempData;
+        test_alloc(packet->data, "packet->data");
+
+        memcpy(packet->data, &buffer[3], packet->size);
+    }
+
+    packet->crc = buffer[packet->size + 3];
+
+    return;
+}
+
+void message_to_buffer(packet_t *packet, unsigned char *buffer)
 {
-    packet_union_t pu;
-    memcpy(pu.raw, buffer, sizeof(packet_union_t));
-    packet->starter_mark = pu.packet.starter_mark;
-    packet->size = pu.packet.size;
-    packet->seq_num = pu.packet.seq_num;
-    packet->type = pu.packet.type;
-    memcpy(packet->data, pu.packet.data, sizeof(packet->data));
-    packet->crc = pu.packet.crc;
+    if (!packet || !buffer)
+        return;
+
+    int buffer_size = packet->size + 4;
+
+    buffer[0] = packet->starter_mark;
+    buffer[1] = (packet->size << 2) + (packet->seq_num >> 3);
+    buffer[2] = (packet->seq_num << 5) + (packet->type & 0x1F);
+
+    if (packet->size)
+        memcpy(&buffer[3], packet->data, packet->size);
+
+    buffer[buffer_size - 1] = packet->crc;
+
+    return;
 }
 
 /*
@@ -102,8 +148,12 @@ void buffer_to_message(unsigned char *buffer, packet_t *packet)
  */
 int listen_socket(int _socket, packet_t *packet)
 {
-    unsigned char buffer[sizeof(packet_union_t)] = {0};
+    // unsigned char buffer[sizeof(packet_union_t)] = {0};
+    unsigned char buffer[DATA_LEN];
+    print_packet(packet);
     ssize_t bytes_received = recv(_socket, buffer, sizeof(buffer), 0);
+
+    buffer_to_message(buffer, &packet);
 
 
 #ifdef DEBUG
@@ -116,6 +166,7 @@ int listen_socket(int _socket, packet_t *packet)
     for (;;)
     {
         size = recv(_socket, buffer, sizeof(buffer), 0);
+
 
         if (size == -1)
         {
@@ -347,7 +398,7 @@ ssize_t send_packet_no_ack(int _socket, packet_t *packet, struct sockaddr_ll *ad
     int is_ack = 0;
     int error = -1;
 
-    code_vpn_strings(packet);
+    // code_vpn_strings(packet);
     size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 }
 
@@ -362,7 +413,7 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
 
     while (is_ack <= 0 && is_ack != TIMEOUT_ERROR)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -405,7 +456,7 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
     // if a nack is received, resend the packet
     while (!is_ack)
     {
-        code_vpn_strings(packet);
+        // code_vpn_strings(packet);
         size = sendto(_socket, pu.raw, sizeof(packet_t), 0, (struct sockaddr *)address, sizeof(struct sockaddr_ll));
 
         is_ack = wait_ack_or_error(packet, &error, _socket);
@@ -518,12 +569,15 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
     {
         size = recv(sock, packet, sizeof(packet_t), 0);
 
+        packet_t *packet = malloc(sizeof(packet_t));
+
+
         if (size == -1)
         {
             continue;
         }
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
             continue;
@@ -574,7 +628,7 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         }
         attempt = 0;
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
             continue;
@@ -587,7 +641,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         if (packet->type == ACK || packet->type == NACK)
             continue;
 
-
 #ifdef DEBUG
         printf("[ETHBKP][RCVM] Message received: ");
 #endif
@@ -596,7 +649,9 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
         if (error)
         {
             packet_t packet_nack;
-            build_packet(&packet_nack, 0, ACK, NULL, 0);
+            build_packet(&packet_nack, 0, NACK, NULL, 0);
+            unsigned char buffer[DATA_LEN];
+            message_to_buffer(&packet, buffer);
             send_nack(sock, packet, &connection->address, &connection->state);
             continue;
         }
@@ -616,6 +671,10 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
     packet_t packet_ack;
     build_packet(&packet_ack, 0, ACK, NULL, 0);
+
+    unsigned char buffer[DATA_LEN];
+    message_to_buffer(&packet, buffer);
+
     ssize_t size_ack = send_ack(sock, &packet_ack, &connection->address, &connection->state);
 
     if (size_ack < 0)
@@ -659,7 +718,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         }
         attempt = 0;
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         print_packet(packet);
 
@@ -771,6 +830,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
     int last_received_seq_num = -1;
     int attempt = 0;
 
+    // vai receber
     FILE *file = fopen(output_filename, "wb");
 
     if (!file)
@@ -793,7 +853,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
         }
         attempt = 0;
 
-        decode_vpn_strings(packet);
+        // decode_vpn_strings(packet);
 
         if (packet->starter_mark != STARTER_MARK)
         {
@@ -836,6 +896,9 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             data_size = packet->size;
             unsigned char *data = malloc(data_size);
             memcpy(data, packet->data, data_size);
+
+            unsigned char buffer[DATA_LEN];
+            buffer_to_message(buffer, packet);
 
             size_t written = fwrite(
                 packet->data,
@@ -914,7 +977,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
             uid_t uid = pwd->pw_uid;
             gid_t gid = pwd->pw_gid;
 
-
             // Altera o proprietário do arquivo para o usuário logado
             if (chown(output_filename, uid, gid) != 0)
             {
@@ -965,6 +1027,8 @@ int wait_for_ack_socket(int sockfd, packet_t *packet, struct sockaddr_ll *addres
     while (!is_ack)
     {
         size = recvfrom(sockfd, packet, sizeof(packet_t), 0, (struct sockaddr *)address, &addr_len);
+        unsigned char buffer[DATA_LEN];
+        buffer_to_message(buffer, packet);
         if (size < 0)
         {
             perror("Erro ao receber pacote");
@@ -1024,6 +1088,9 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
             break;
 
         build_packet(packet, current_data_video_index, DADOS, (unsigned char *)data, data_size);
+
+        unsigned char buffer[DATA_LEN];
+        message_to_buffer(packet, data);
 
         int is_ack = 0;
         while (!is_ack && is_ack != -1)
@@ -1099,7 +1166,6 @@ char *get_video_path(char *video_name)
     closedir(d);
     return video_path;
 }
-
 
 int check_crc(packet_t *packet)
 {
