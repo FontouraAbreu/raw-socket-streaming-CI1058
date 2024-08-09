@@ -138,10 +138,6 @@ int listen_socket(int _socket, packet_t *packet)
         if (packet->type != ACK && packet->type != NACK)
             continue;
 
-#ifdef DEBUG
-        printf("Received %s\n", packet->type == ACK ? "ACK" : "NACK");
-#endif
-
         if (packet->type == ACK)
         {
             printf("Received ACK\n");
@@ -208,10 +204,6 @@ int wait_ack_or_error(packet_t *packet, int *error, int _socket)
 {
     if (!packet)
         return -2;
-
-#ifdef DEBUG
-    printf("[ETHBKP][WACKOE] Waiting acknowledgement\n");
-#endif
 
     ssize_t size = -1;
     int is_ack = 0;
@@ -368,10 +360,6 @@ ssize_t send_packet(int _socket, packet_t *packet, struct sockaddr_ll *address, 
         is_ack = wait_ack_or_error(packet, &error, _socket);
 
         printf("is_ack: %d\n", is_ack);
-
-#ifdef DEBUG
-        printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-#endif
     }
 
     if (size < 0)
@@ -412,9 +400,6 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
         printf("is_ack: %d\n", is_ack);
 
-#ifdef DEBUG
-        printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-#endif
     }
 
     if (size < 0)
@@ -425,12 +410,6 @@ ssize_t send_init_sequence(int _socket, packet_t *packet, struct sockaddr_ll *ad
 
     printf("recebi ack do init sequence\n");
 
-    // if (is_ack)
-    // {
-    //     packet_t packet_init_seq;
-    //     build_packet(&packet_init_seq, 0, INICIO_SEQ, NULL, 0);
-    //     send_ack(_socket, &packet_init_seq, address, connection_state);
-    // }
 
     return size;
 }
@@ -531,16 +510,13 @@ void receive_packet(int sock, packet_t *packet, connection_t *connection)
         if (packet->type == ACK || packet->type == NACK)
             continue;
 
-#ifdef DEBUG
-#endif
-        printf("[ETHBKP][RCVM] Message received: ");
         print_packet(packet);
 
         // error = check_crc(packet);
         // if (error)
         // {
         //     packet_t packet_nack;
-        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
+        //     build_packet(&packet_nack, 0, NACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
         //     continue;
         // }
@@ -586,11 +562,6 @@ void wait_for_init_sequence(int sock, packet_t *packet, connection_t *connection
 
         if (packet->type == ACK || packet->type == NACK)
             continue;
-
-
-#ifdef DEBUG
-        printf("[ETHBKP][RCVM] Message received: ");
-#endif
 
         error = check_crc(packet);
         if (error)
@@ -684,7 +655,7 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // {
         //     printf("Erro no CRC\n");
         //     packet_t packet_nack;
-        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
+        //     build_packet(&packet_nack, 0, NACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
         //     continue;
         // }
@@ -720,7 +691,6 @@ void receive_packet_sequence(int sock, packet_t *packet, connection_t *connectio
         // Verifica se é a duração do vídeo
         if (packet->type == DURACAO && packet->seq_num == 2)
         {
-            printf("[ETHBKP][RCVM] Duração do vídeo recebida: ");
             print_packet(packet);
             video_list->videos = realloc(video_list->videos, (video_list->num_videos + 1) * sizeof(video_t));
             // Supondo que a duração esteja nos dados do pacote como um inteiro
@@ -820,7 +790,7 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
         // if (error)
         // {
         //     packet_t packet_nack;
-        //     build_packet(&packet_nack, 0, ACK, NULL, 0);
+        //     build_packet(&packet_nack, 0, NACK, NULL, 0);
         //     send_nack(sock, packet, &connection->address, &connection->state);
         //     continue;
         // }
@@ -831,7 +801,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
 
         if (packet->type == DADOS)
         {
-            printf("[ETHBKP][RCVM] Message received: ");
             print_packet(packet);
             data_size = packet->size;
             unsigned char *data = malloc(data_size);
@@ -871,7 +840,6 @@ int receive_video_packet_sequence(int sock, packet_t *packet, connection_t *conn
                 packet_t packet_ack;
                 build_packet(&packet_ack, 0, ACK, NULL, 0);
                 send_ack(sock, &packet_ack, &connection->address, &connection->state);
-                return -1;
             }
             else
             {
@@ -1036,9 +1004,6 @@ void send_video(int sock, packet_t *packet, connection_t *connection, char *vide
 
             is_ack = wait_for_ack_socket(sock, packet, &connection->address, &connection->state);
 
-#ifdef DEBUG
-            printf("[ETHBKP][SNDMSG] Message sent, is_ack=%d\n\n", is_ack);
-#endif
         }
 
         if (is_ack == -1)
